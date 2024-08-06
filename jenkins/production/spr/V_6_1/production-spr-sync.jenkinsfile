@@ -1,0 +1,300 @@
+/**
+THiS FILE UPLOADs CODE ON MARINER 2 APOLLO 2 & EXPLORER
+
+SPR RELEASE Pipeline for mariner 2 and Apollo 2.
+We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
+There are 6 main stages involved in releasing the SPR
+STAGE 1:- Verifying spr param & setting pipeline variables
+STAGE 2:- Verifying Patch. If patch zip file created during SPR release exists.
+STAGE 3:- Taking backup of old codes on servers in /var/devops/backups/{codbase}-SPRNumber.zip
+STAGE 4:- Deploying patch on servers.
+STAGE 5:- Adding all servers to TG. 
+STAGE 6:- Sending email notification
+
+PLUGINS USED:-
+sshPublisher:- To upload folder and to execute ssh script on remote server 
+CVSSCM:- To checkout the code from repository server
+
+**/
+def sprNumber = ""
+def servers = "";
+def buildStatus = "SUCCESS";
+def attachment = false;
+pipeline {
+     
+     /** Defining workspace for the node **/
+     agent {
+             node {
+		            label ''
+		            customWorkspace '/var/devops/sprsync/'
+         		 }
+          }
+    /**
+     Setting jdk for java build
+    */
+     tools {
+       jdk "jdk14"
+     }
+     /**
+       Params to define which codebase & TAG we want to upload 
+     */
+    parameters {
+        booleanParam(name: "MARINER", defaultValue: false)
+        booleanParam(name: "APOLLO", defaultValue: false)
+       string(name: "SPR_NUMBER", defaultValue: '', description: 'Provide SPR Number')
+    }
+    stages {      
+    
+/**
+  STAGE 1.Verifying SPR Param & Setting Pipeline Variables
+*/
+         stage('Initiate SPR Sync'){
+             steps {
+             		 script {
+           			    if (params.SPR_NUMBER == '') {
+					         currentBuild.result = 'ABORTED'
+					         error('SPR NUMBER Not Defined�')
+					     }else{
+					          sprNumber = params.SPR_NUMBER;
+					          if(params.MARINER)
+					            servers = "MARINER 2";
+					          if(params.APOLLO)  
+					            servers = servers+" APOLLO 2";
+					            currentBuild.description ="SPR "+ params.SPR_NUMBER
+					     }
+                       }
+                   }
+             }  
+       
+/**
+ STAGE 2. Verifying Patch.
+*/
+     stage('Verify Patch'){
+             steps {
+             		 script{
+           					   String target_dir="";
+	           			       if(params.MARINER)
+	           			       {
+	           			        	target_dir = "/var/devops/spr/webapps-${sprNumber}.zip";
+	           			        	res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
+							   		if(res == "1")
+							   		{
+    									sh"cp  ${target_dir} /var/devops/sprsync/"
+									}
+									else{
+									     error('Mariner Patch Not Defined�')
+									}
+							   }
+							   if(params.APOLLO)
+							   {
+							    	target_dir = "/var/devops/spr/html-${sprNumber}.zip";
+							    	res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
+							   		if(res == "1")
+							   		{
+    									sh"cp  ${target_dir} /var/devops/sprsync/"
+									}
+									else{
+									     error('Apollo Patch Not Defined�')
+									}
+							    	
+							   }
+           			
+					      }
+                     }
+                }         
+/**
+ STAGE 3. Taking backup of old codes on servers in /var/devops/backups/.
+          ssh plugin used to excute the ssh  command on all Remote servers
+*/
+    stage('Backup'){
+      parallel{
+        stage('MARINER 2'){
+        when { expression { params.MARINER } }
+           steps {
+                 script{
+                  String target_dir = "webapps-${sprNumber}.zip";
+                  res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
+				  if(res=='1')
+				  {
+		          	sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner2', 
+		          	transfers: [sshTransfer(cleanRemote: false, excludes: '',
+	          	  	execCommand: """cd /var/devops/backups
+					sudo rm -rf webapps*
+				    cd /var/lib/tomcat9/webapps
+					sudo zip -r   /var/devops/backups/webapps-${sprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+					useWorkspaceInPromotion: false, verbose: true)])
+		           }
+		           else
+		           {
+    					 error('PATCH NOT FOUND')
+				   }
+		          }
+                } 
+            }
+            stage('APOLLO 2'){
+           	 when { expression { params.APOLLO } }
+             steps {
+		          script{
+                  String target_dir = "html-${sprNumber}.zip";
+                  res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
+				  if(res=='1')
+				  {
+		          	  sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo2', 
+		          	  transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		          	  execCommand: """cd /var/devops/backups
+					  sudo rm -rf html*
+				   	  cd /var/www/html
+					  sudo zip -r /var/devops/backups/html-${sprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" , 
+					  execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+					  patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+					  removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					  useWorkspaceInPromotion: false, verbose: true)])
+					  
+		     	  }
+		           else
+		           {
+    					 error('PATCH NOT FOUND')
+				   }
+		          }
+               }  
+             }
+           } 
+          }
+        
+ /**
+  STAGE 4. Deploying Patch on servers with the help of sshPublisher plugin
+ */ 
+       stage('Deploy Patch'){
+                 parallel{
+                    stage('MARINER 2'){
+                      when { expression { params.MARINER} }
+                        steps {
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner2', transfers: [sshTransfer(cleanRemote: false, excludes: '',
+  				         execCommand: '', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+  				         remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+  				         sourceFiles:"webapps-${sprNumber}.zip")],
+  				         usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+  				         
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner2', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+                        execCommand: """cd /home/devops
+						cd /var/lib/tomcat9/webapps
+						sudo rm -rf  ROOT/WEB-INF/lib/*
+						sudo rm -rf  es/WEB-INF/lib/*
+						sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+						sudo rm -rf  egCustomerServices/WEB-INF/lib/*
+						cd /home/devops
+						sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
+						cd /opt/tomcat9/bin
+						sudo ./shutdown.sh
+						sleep 5
+						sudo ./startup.sh
+						sleep 15
+						sudo rm -rf /home/devops/webapps-${sprNumber}.zip """, 
+						execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+										        }
+                      }
+                      stage('APOLLO 2'){
+                        when { expression { params.APOLLO} }
+	                        steps {
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo2', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	                        execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+	                        remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+	                        sourceFiles: "html-${sprNumber}.zip")], 
+	                        usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+	                        
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo2', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	                        execCommand: """cd /home/devops
+							sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+							sudo unzip -o html-${sprNumber}.zip -d /var/www/
+							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							sudo rm -rf /home/devops/html-${sprNumber}.zip""", 
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+							verbose: true)])
+                          }
+                       }
+                    }
+               }
+           
+/**
+  STAGE 5. Adding and Removing Server to TG
+*/  
+            stage('Attach Server'){
+	                 parallel{     
+				                stage('Adding APOLLO 2 & Removing APOLLO 1')
+				                {
+				                 when { expression { params.APOLLO} }
+				                   steps{
+						        	   	sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+									      aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+									      aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+								          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a 
+	 								      sleep 10
+	 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+								          aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+								          aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c'''
+	 								 }
+				                }
+				                
+				                stage('Adding MARINER 2 & Removing MARINER 1')
+				                {
+				                  when { expression { params.MARINER} }
+				                   steps{
+						        	     sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce
+								          sleep 10
+									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446'''	 
+										}
+				                 }
+				              }
+				      } 
+              }  
+          	post {
+		         success {
+		                    script{
+		                       buildStatus = "SUCCESS"
+		                    }
+					     }   
+			     unstable {
+				          script{
+				           	   buildStatus = "UNSTABLE"
+				          }
+		         }
+		         failure {
+			             script{
+				          	  buildStatus = "FAILED"
+			             }
+                 }
+             }    
+  }
+  
+/**
+ Sending Email notification to developers
+*/
+  
+ if(buildStatus == "SUCCESS")
+ {
+    subject = "SPR ${sprNumber} SUCCESSFULLY RELEASED ON PRODUCTION";
+    env.content = "SPR ${sprNumber}  is successfully released on production. All Servers are in sync"
+ }
+  else if(buildStatus == "UNSTABLE")
+ {
+    subject = "SPR ${sprNumber} DEPLOYED ON ${servers} IS UNSTABLE";
+	env.content = "SPR ${sprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+ 	attachment = true;
+ } 
+ else
+ {
+    subject = "SPR ${SPR} FAILED TO DEPLOY ON ${servers}";
+	env.content = "SPR ${sprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+ 	attachment = true;
+ } 
+ 
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
+   

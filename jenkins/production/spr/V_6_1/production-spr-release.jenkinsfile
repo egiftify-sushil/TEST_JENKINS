@@ -1,0 +1,782 @@
+/**
+THIS FILE UPLOADS CODE ON MARINER 1 APOLLO 1 EXPLORER
+
+SPR RELEASE Pipeline For MARINER 1 and APOLLO 1.
+We can upload to any codebase like java OR Php OR Delivery depending upon the user choice
+There are 10 main stages involved in releasing the SPR
+STAGE 1:-  Verifying SPR param and deleting pipeline workspace.
+STAGE 2:-  Removing instance from taget groups.(MARINER 1 & APOLLO 1) {Parallel}
+ Taking backup of old codes on servers in /var/devops/backups/{codebase}-sprNumber.zip. {Parallel}
+STAGE 3:-  Code checkout from SPR branch (all selected projects) using CVSSCM plugin configured on the jenkins. {Parallel}
+STAGE 4:-  Code checkout from Git (6.1.0 Branch)
+STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework {Parallel}
+STAGE 6:-  Creating patch (code packaging). {Parallel}
+STAGE 7:-  Deploying patch on production servers (MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin.{Parallel}
+STAGE 8:-  CDN syncing & invalidating assets using aws CLI.
+STAGE 9:-  Adding Mariner 1 and Apollo 1 on TG & removing Apollo2 and Mariner 2 from TG.{Parallel}
+STAGE 10:- Sending Email notification to developers.
+
+PLUGINS USED:-
+sshPublisher:- To upload folder and to execute ssh script on remote server
+CVSSCM:- To checkout the code from repository server
+
+**/
+def gitbranch = '6.1.0'
+def sprNumber = ''
+def servers = ''
+def buildStatus = 'SUCCESS'
+def attachment = false
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+
+]
+
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+pipeline {
+     /** Defining workspace for the node **/
+    agent {
+        node {
+                    label ''
+                    customWorkspace '/var/devops/spr/'
+        }
+    }
+    // agent any
+    environment {
+        GIT_URL = "${env.GIT_URL}"
+    }
+
+    /**
+     Setting jdk for java build
+    */
+    tools {
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
+     /**
+       Params to define which codebase we want to upload
+     */
+    parameters {
+        // new bool value for ops
+        booleanParam(name: 'OPS', defaultValue: false)
+        booleanParam(name: 'MARINER', defaultValue: false)
+        booleanParam(name: 'APOLLO', defaultValue: false)
+        booleanParam(name: 'EXPLORER', defaultValue: false)
+        //  booleanParam(name: "APOLLOANGULAR", defaultValue: false)
+        // for apolo-angular
+        string(name: 'SPR_NUMBER', defaultValue: '', description: 'Provide SPR Number')
+    }
+    stages {
+/**
+  STAGE 1.Verifying Spr param and Deleting Pipeline Workspace
+*/
+        stage('Initiate SP Release') {
+            steps {
+                script {
+                    if (params.SPR_NUMBER == '') {
+                        currentBuild.result = 'ABORTED'
+                        error('SPR NUMBER Not  Defined�')
+                         }else {
+                        sprNumber = params.SPR_NUMBER
+                        if (params.OPS) {
+                                servers = 'TEST_SERVER'
+                        }
+                        if (params.MARINER) {
+                                servers = 'TEST_SERVER'
+                        }
+
+                        if (params.APOLLO) {
+                                servers = servers + 'TEST_SERVER '
+                        }
+                        if (params.EXPLORER) {
+                                servers = servers + 'TEST_SERVER'
+                        }
+                        if (params.APOLLOANGULAR) {
+                                servers = 'TEST_SERVER'
+                        }
+
+                                cleanWs()
+                                currentBuild.description = 'SPR ' + params.SPR_NUMBER
+                    }
+                }
+            }
+        }
+/**
+  STAGE 2. Removing instance from taget groups.
+           AWS CLI configured on jenkins used to perform this task
+ */
+    //    stage('Detach Servers From TG'){
+    //         parallel{
+    //          stage('Removing APOLLO 1 From TG'){
+    //           when { expression { params.APOLLO } }
+    //                steps
+    //                {
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                        sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                        sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                 }
+    //             }
+    //           stage('Removing MARINER 1 From TG'){
+    //             when { expression { params.MARINER } }
+    //                 steps
+    //                 {
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2\
+    //                         --targets Id=i-0a06ca56b6263d446'
+    //                 }
+    //             }
+    //          }
+    //       }
+
+/**
+ . Taking backup of old codes on servers in /var/devops/backups/ dir
+          ssh plugin used to excute the ssh  command on all remote servers
+*/
+//    stage('Backup'){
+//      parallel{
+//        stage('MARINER 1'){
+//         when { expression { params.MARINER } }
+//            steps {
+//                       sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+//                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+//                       execCommand: """cd /var/devops/backups
+//                     sudo rm -rf webapps*
+//                     cd /var/lib/tomcat9/webapps
+//                     sudo zip -r   /var/devops/backups/webapps-${sprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" ,
+//                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+//                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+//                     removePrefix: '', sourceFiles: '')],
+//                     usePromotionTimestamp: false,
+//                     useWorkspaceInPromotion: false, verbose: true)])
+//                   }
+//             }
+//             stage('EXPLORER'){
+//              when { expression { params.EXPLORER } }
+//                steps {
+//                       sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+//                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+//                        execCommand: """cd /var/devops/backups
+//                         sudo rm -rf delivery*
+//                         cd /var/lib/tomcat9/webapps
+//                         sudo zip -r  /var/devops/backups/delivery-${sprNumber}.zip eg_scheduler/* eg_scheduler_services/*
+//                         """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+//                         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+//                         removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+//                         useWorkspaceInPromotion: false, verbose: true)])
+//                       }
+//            }
+//             stage('APOLLO 1'){
+//             when { expression { params.APOLLO } }
+//              steps {
+//                    sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+//                    transfers: [sshTransfer(cleanRemote: false, excludes: '',
+//                     execCommand: """cd /var/devops/backups
+//                     sudo rm -rf html*
+//                     cd /var/www/html
+//                     sudo zip -r /var/devops/backups/html-${sprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
+//                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+//                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+//                     removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+//                     useWorkspaceInPromotion: false, verbose: true)])
+//                   }
+//             }
+//              stage('Backup') {
+//             steps {
+//                 sshPublisher(
+//                     publishers: [
+//                         sshPublisherDesc(
+//                             configName: 'TEST_SERVER',
+//                             transfers: [
+//                                 sshTransfer(
+//                                     cleanRemote: false,
+//                                     excludes: '',
+//                                     execCommand: """
+//                                     # Create backup directory if not exists
+//                                     sudo cd /var/devops/backups
+
+//                                     # Backup Spring project ops.jar
+//                                     sudo cp /var/spring_project/ops.jar /var/devops/backups/ops_backup.jar
+//                                     sudo zip -r  /var/devops/backups/spring_backup.zip
+//                                     cd ..
+
+//                                     """,
+//                                     execTimeout: 0,
+//                                     flatten: false,
+//                                     makeEmptyDirs: false,
+//                                     noDefaultExcludes: false,
+//                                     patternSeparator: '[, ]+',
+//                                     remoteDirectory: '',
+//                                     remoteDirectorySDF: false,
+//                                     removePrefix: '',
+//                                     sourceFiles: ''
+//                                 )
+//                             ],
+//                             usePromotionTimestamp: false,
+//                             useWorkspaceInPromotion: false,
+//                             verbose: true
+//                         )
+//                     ]
+//                 )
+//             }
+//         }
+//           }
+//          }
+
+/**
+ STAGE 3. Doing Checkout of SPR code using CVSSCM plugin configured on the jenkins.
+ */
+        stage('Code Checkout') {
+            parallel {
+                stage('Java  Checkout') {
+                    when { expression { params.MARINER ||  params.EXPLORER } }
+                    steps {
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false,
+                      repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                      repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber, useHeadIfNotFound: false],
+                      modules: [[localName: 'eg_objects', remoteName: 'eg_objects'],
+                      [localName: 'eg_platform', remoteName: 'eg_platform'],
+                      [localName: 'scheduler_base', remoteName: 'scheduler_base'],
+                      [localName: 'eg_portal_services', remoteName: 'eg_portal_services'],
+                      [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'],
+                      [localName: 'eg_customer_services', remoteName: 'eg_customer_services'],
+                      [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],
+                      [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services'],
+                      [localName: 'eg_scheduler', remoteName: 'eg_scheduler']]]]]],
+                      skipChangeLog: false]
+                        }
+                    }
+                }
+                stage('PHP Checkout') {
+                    when { expression { params.APOLLO } }
+                    steps {
+                        sh '''
+                           mkdir html
+                          '''
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                          repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                          repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber, useHeadIfNotFound: false],
+                          modules: [
+                          [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'],
+                          [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'],
+                          [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'],
+                          [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2'],
+                          [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]],
+                          skipChangeLog: false]
+                        }
+                    }
+                }
+
+                stage('Angular Repos Checkout') {
+                    when { expression { params.APOLLOANGULAR } }
+                    steps {
+                        sh 'mkdir -p angular'
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
+                        {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
+                            cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
+                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber,
+                            useHeadIfNotFound: false], modules: [
+                            [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
+                        }
+                    }
+                }
+            }
+        }
+    /**
+   STAGE 4.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
+
+ */
+
+        stage('Common Repos Checkout') {
+            parallel {
+                stage('Spring common Libraries') {
+                    when { expression { params.MARINER ||  params.EXPLORER } }
+
+                    steps {
+                        script {
+                            springcommonRepos.each { repo1 ->
+                                dir(repo1) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo1}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('platform') {
+                    when { expression { params.OPS } }
+
+                    steps {
+                        script {
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+/**
+   STAGE 5.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
+
+ */
+        stage('Building Common Jars') {
+            when { expression { params.MARINER || params.EXPLORER } }
+
+            steps {
+                script {
+                    // Define Maven commands
+                    def mavenCommands = [
+                'mvn clean',
+                'mvn install -U'
+            ]
+
+                    // Execute springcommonRepos first
+                    springcommonRepos.each { repo1 ->
+                        dir(repo1) {
+                            // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                            sh '''
+                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                    '''
+
+                            // Execute Maven commands
+                            mavenCommands.each { command ->
+                                sh command
+                            }
+                        }
+                    }
+
+                    // Define build steps
+                    def buildSteps = [
+                ['name': 'eg_objects', 'path': 'eg_objects'],
+                ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                ['name': 'eg_platform', 'path': 'eg_platform'],
+                ['name': 'scheduler_base', 'path': 'scheduler_base']
+                    ]
+
+                    // Execute buildSteps
+                    buildSteps.each { step ->
+                        dir(step.path) {
+                            sh 'mvn clean'
+                            sh 'mvn install -U'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            parallel {
+                stage('Building Platform Repos') {
+                    when { expression { params.OPS_RELEASE } }
+
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                   '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building MARINER Services') {
+                    when { expression { params.MARINER } }
+
+                    steps {
+                        script {
+                                // Build each service sequentially
+                                dir('eg_portal_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_customer_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_lifeline_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_merchant_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_scheduler_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_scheduler') {
+                                    sh 'mvn clean package'
+                                }
+                        }
+                    }
+                }
+                stage('Building EXPLORER Services') {
+                    when { expression { params.EXPLORER } }
+
+                    steps {
+                        script {
+                                // Build each service sequentially
+
+                                dir('eg_scheduler_services') {
+                                    sh 'mvn clean package'
+                                }
+                                dir('eg_scheduler') {
+                                    sh 'mvn clean package'
+                                }
+                        }
+                    }
+                }
+                stage('Building Yii2 Framework') {
+                    when { expression { params.APOLLO } }
+                    steps {
+                        sh''' cd html
+                                cd eg_yii2_framework_v2
+                                composer install'''
+                    }
+                }
+                stage('Build Angular Services') {
+                    when {
+                        expression { params.APOLLOANGULAR }
+                    }
+                    steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                   cd angular/eg_customer_ang_v1
+
+                                   # Install project dependencies                                   
+                                     npm install
+
+                                   # Build the project
+                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                   # Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     else
+                                     mkdir -p ../../html
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     fi
+
+                                 '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+/**
+   STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
+*/
+        stage('Create Patch')
+       {
+            parallel {
+                stage('Creating Services Patch') {
+                    when { expression { params.MARINER } }
+                    steps {
+                        sh '''
+                       mkdir webapps
+                       mkdir webapps/eg_portal_services
+                       mkdir webapps/egCustomerServices
+                       mkdir webapps/es
+                       mkdir webapps/ROOT
+                        if [ -d "eg_portal_services" ]; then
+                            cd eg_portal_services
+                            unzip -o target/eg_portal_services.war -d ../webapps/eg_portal_services
+                            cd ..
+                        fi
+                        if [ -d "eg_customer_services" ]; then
+                            cd eg_customer_services
+                            unzip -o target/eg_customer_services.war -d ../webapps/egCustomerServices
+                            cd ..
+                         fi
+                         if [ -d "eg_lifeline_services" ]; then
+                            cd eg_lifeline_services
+                            unzip -o target/eg_lifeline_services.war -d ../webapps/ROOT
+                            cd ..
+                          fi
+                          if [ -d "eg_merchant_services" ]; then
+                             cd eg_merchant_services
+                             unzip -o target/eg_merchant_services.war -d ../webapps/es
+                              cd ..
+                         fi'''
+                        sh"zip -r webapps-${sprNumber}.zip webapps"
+                    }
+                }
+                stage('Creating Scheduler Patch') {
+                        when { expression { params.EXPLORER } }
+                        steps {
+                        sh '''
+                            if [ ! -d "deliverywebapps" ]; then
+                              mkdir deliverywebapps
+                            fi
+                              mkdir deliverywebapps/eg_scheduler_services
+                              mkdir deliverywebapps/eg_scheduler
+                             mkdir deliverywebapps/eg_scheduler/lib
+                            cd eg_scheduler_services
+                            unzip -o target/eg_scheduler_services.war -d ../deliverywebapps/eg_scheduler_services
+                            cd ..
+                            cd eg_scheduler
+                            cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
+                            cd ..
+                            '''
+                        sh"""cd deliverywebapps
+                             zip -r ../delivery_webapps-${sprNumber}.zip eg_scheduler eg_scheduler_services"""
+                        }
+                }
+
+                stage('Creating PHP Patch Or Angular Patch') {
+                      when { expression { params.APOLLO || params.APOLLOANGULAR } }
+
+                        steps {
+                        script {
+                            if (params.APOLLO && params.APOLLOANGULAR) {
+                                error('Both APOLLO and APOLLOANGULAR parameters cannot be true simultaneously.')
+                             } else if (params.APOLLO) {
+                                // Commands for APOLLO
+                                sh '''
+                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                '''
+                                sh "zip -r html-${sprNumber}.zip html/*"
+                             } else if (params.APOLLOANGULAR) {
+                                // Commands for APOLLOANGULAR
+                                sh '''
+                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                '''
+                                sh "zip -r html-${sprNumber}.zip html/*"
+                            }
+                        }
+                    }
+                }
+            }
+       }
+
+/**
+ STAGE 7. Deploying Patch on servers(MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin
+*/
+        stage('Deploy Patch') {
+            parallel {
+                    stage('MARINER 1') {
+                    when { expression { params.MARINER } }
+                        steps {
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                           transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                           execCommand: '', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                           patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+                           sourceFiles:"webapps-${sprNumber}.zip")], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                           verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: """cd /home/devops
+                            sudo cd /var/lib/tomcat9/webapps
+                            sudo rm -rf  ROOT/WEB-INF/lib/*
+                            sudo rm -rf  es/WEB-INF/lib/*
+                            sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+                            sudo rm -rf  egCustomerServices/WEB-INF/lib/*
+                            cd /home/devops
+                            sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
+                            cd /opt/tomcat9/bin
+                            sudo ./shutdown.sh
+                            sleep 5
+                            sudo ./startup.sh
+                            sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                            patternSeparator: '[, ]+',
+                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+                            useWorkspaceInPromotion: false, verbose: true)])
+                        }
+                    }
+                stage('EXPLORER 1') {
+                        when { expression { params.EXPLORER } }
+                        steps {
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '',
+                            sourceFiles: "delivery_webapps-${sprNumber}.zip")],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: """cd /home/devops
+                            sudo cd /var/lib/tomcat9/webapps
+                            sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
+                            sudo rm -rf  eg_scheduler/lib/*
+                            cd /home/devops
+                            sudo unzip -o delivery_webapps-${sprNumber}.zip -d /var/lib/tomcat9/webapps/
+                            sudo rm -rf /home/devops/delivery_webapps-${sprNumber}.zip""",
+                            execTimeout: 0, flatten: false,
+                            makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
+                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''cd /var/www/html/shfiles
+                            sudo ./newkillSchedularProcess.sh
+                            cd /opt/tomcat9/bin
+                            sudo ./shutdown.sh  2>/dev/null
+                            sudo sleep 5
+                            sudo ./startup.sh
+                            sudo sleep 10
+                            cd /var/www/html/shfiles
+                            sudo ./schedularProcess.sh''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+                            removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+                            useWorkspaceInPromotion: false,
+                            verbose: true)])
+                        }
+                }
+                stage('APOLLO 1') {
+                        when { expression { params.APOLLO } }
+                            steps {
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '',
+                            sourceFiles: "html-${sprNumber}.zip")], usePromotionTimestamp: false,
+                            useWorkspaceInPromotion: false, verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: """sudo cd /home/devops
+                            sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+                            sudo unzip -o html-${sprNumber}.zip -d /var/www/
+                            sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+                            sudo rm -rf /home/devops/html-${sprNumber}.zip""",
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+                            removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+                            useWorkspaceInPromotion: false, verbose: true)])
+                            }
+                }
+                stage('OPS')
+                       {
+                            when { expression { params.OPS } }
+                        steps {
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                              transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                              execCommand: """
+                              # Create the deploy.sh script
+                              cat << 'EOF' > /home/devops/deploy.sh
+
+                             sudo rm -rf /var/spring_project/*
+                             sudo cp /home/devops/processing_system/ops.jar /var/spring_project/ops-spr-${sprNumber}.jar
+                             sudo cd /var/spring_project
+                             sudo nohup java -jar ops-spr-${sprNumber}.jar > ops.log 2>&1 &
+                              EOF
+
+                             # Make the script executable
+                             chmod +x /home/devops/deploy.sh
+
+                             # Run the script
+                             /home/devops/deploy.sh
+                              """,
+                             execTimeout: 0,flatten: false, makeEmptyDirs: false,noDefaultExcludes: false,
+                             patternSeparator: '[, ]+',remoteDirectory: '/home/devops/processing_system',remoteDirectorySDF: false,
+                             removePrefix: 'processing_system/target',
+                             sourceFiles: 'processing_system/target/ops.jar')],usePromotionTimestamp: false,
+                             useWorkspaceInPromotion: false,verbose: true)])
+                     }
+                       }
+            }
+        }
+
+/**
+  STAGE 8.Syncing & Invalidating assets using aws CLI
+**/
+
+// /**
+//  STAGE 9. Adding and Removing Server to TG
+// */
+       
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = 'FAILED'
+            }
+        }
+    }
+}
+
+ /**
+  STAGE 11. Sending Email notification to developers
+ */
+ if (buildStatus == 'SUCCESS') {
+    subject = "SPR ${sprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
+    env.content = "SPR ${sprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
+ }
+ else if (buildStatus == 'UNSTABLE') {
+    subject = "SPR ${sprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
+    env.content = "SPR ${sprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+    attachment = true
+ }
+ else
+ {
+    subject = "SPR ${sprNumber} FAILED TO DEPLOY ON ${servers}"
+    env.content = "SPR ${sprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+    attachment = true
+ }
+
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+

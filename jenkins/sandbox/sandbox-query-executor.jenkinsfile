@@ -1,0 +1,116 @@
+/**
+UAT PIPELINE : FILE TO EXECUTE DB QUERIES
+
+There are 2 stages involved this process
+STAGE 1:-  Deleting pipeline workspace
+STAGE 2:-  Doing repos checkout(JAVA & PHP) in parallel stages
+
+PLUGINS USED:-
+sshPublisher:- To upload folder and to execute ssh script on remote server 
+CVSSCM:- To checkout the code from repository server
+
+**/
+def branchname = "";
+def dbUser ="";
+def dbPass ="";
+def buildStatus = true;
+def attachment = false;
+def sqlFilePath="";
+pipeline {
+
+    agent any;
+
+     /**
+       Params to define which codebase we want to upload 
+     */
+    parameters {
+        string(name: "BRANCH_NAME",  description: 'Provide Branch Name',defaultValue:'')
+        string(name: "DB_USER", description: 'Provide DB User',defaultValue:'')
+        string(name: "DB_PASS",  description: 'Provide DB Pass',defaultValue:'')
+        string(name: "DB_FILE_PATH",  description: 'Provide Query File Path',defaultValue:'')
+    }
+   stages{    
+   
+      stage('Initiate Db Script Query'){
+             steps {
+             		 script {
+           			    if (params.BRANCH_NAME == '' || params.DB_USER ==''|| params.DB_PASS==''  || params.DB_FILE_PATH =='') {
+					         currentBuild.result = 'ABORTED'
+					         error('Param Not  Defined…')
+					     }else{
+					          branchname = params.BRANCH_NAME;
+					          dbUser = params.DB_USER;
+					          dbPass = params.DB_PASS;
+					          sqlFilePath = params.DB_FILE_PATH;
+					          currentBuild.description = params.DB_FILE_PATH
+					     }
+                       }
+                   }
+            }
+/**
+ STAGE 7. Running DbScript
+*/
+	stage('Code Checkout'){
+             steps {
+		              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+		              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+		              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+		              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+		              modules: [[localName: 'eg_objects', remoteName: 'eg_objects']]]]]], 
+		              skipChangeLog: true]
+	               }
+                }
+            }
+     stage('DbScript'){
+					steps{
+					    script{
+							   if(sqlFilePath!="")
+							   {
+							    String fileName = "";
+							    String target_dir = "eg_objects/database/"+DB_FILE_PATH;
+							    res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
+							    if(res=='1')
+							    {
+							    
+							     String[] bits = DB_FILE_PATH.replaceAll("\\\\", "/").split("/");
+								 fileName = bits[bits.length-1];
+							     withCredentials([string(credentialsId: 'KEYD', variable: 'KEYD')]) {
+   									dbPass  = sh(script: "echo ${dbPass} | openssl aes-256-cbc -a -salt -pass pass:${KEYD}", returnStdout: true);
+								 }
+								 sh""" 
+								  rm -rf database*
+								  mkdir database
+								  cp ${target_dir} database/
+								  zip -r database.zip database
+								  """;
+		                          sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+		                          transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+		                          execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+		                          patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+		                          removePrefix: '', sourceFiles: "database.zip")], 
+		                          usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+		                          verbose: true)])
+		                          
+			                      sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+			                      transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+			                      execCommand: """cd /home/devops
+sudo unzip -o database.zip -d /home/devops
+sudo chmod -R 775 database
+cd /var/www/html/shfiles
+./executeQuery.sh ${dbUser} ${fileName} ${dbPass}""", execTimeout: 180000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+								  patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+								  removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+								  useWorkspaceInPromotion: false, verbose: true)]);
+
+	                       }
+							   else
+							    echo "No db script found"
+							}  
+						}	  
+					}
+		      } 
+         
+          }  
+       }
+
+         

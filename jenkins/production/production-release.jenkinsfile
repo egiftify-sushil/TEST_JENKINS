@@ -1,0 +1,313 @@
+
+def gitbranch = ''
+def gitbranch1 = 'main'
+def buildStatus = 'SUCCESS'
+def attachment = false
+def sqlFilePath = ''
+
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+]
+def jersseyRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+def phpRepos = [
+    'todo',
+    'Edtech',
+    'grocery'    
+]
+def angularRepos = [
+    'lookin_frontend_next_js'
+]
+
+pipeline {
+    agent any
+    environment {
+          GIT_URL = "${env.GIT_URL}"
+         GIT_URL1 = "${env.GIT_URL1}"
+    }
+
+    tools {
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
+
+    parameters {
+
+        
+        booleanParam(name: 'APOLLO', defaultValue: false)
+        booleanParam(name: 'APOLLOANGULAR', defaultValue: false)
+        booleanParam(name: 'EXPLORER', defaultValue: false)
+        booleanParam(name: 'MARINER', defaultValue: false)
+        booleanParam(name: 'OPS', defaultValue: false)        
+        string(name: 'GIT_BRANCH', defaultValue: '', description: 'Provide GIT Branch Number')       
+        string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db File path if any')
+    }
+
+    stages {
+/**
+  STAGE 1.Verifying UPR param and Deleting Pipeline Workspace
+*/
+        stage('Initiate SP Release') {
+            steps {
+                script {
+                    if (params.GIT_BRANCH == '') {
+                        currentBuild.result = 'ABORTED'
+                        error('GIT Branch Not  Defined�')
+                         }else {
+                        gitbranch = params.GIT_BRANCH
+						
+                        if (params.OPS) {
+                                servers = 'TEST_SERVER'
+                        }
+
+                        if (params.MARINER) {
+                                servers = 'TEST_SERVER'
+                        }
+
+                        if (params.APOLLO) {
+                                servers = servers + 'TEST_SERVER '
+                        }
+                        if (params.EXPLORER) {
+                                servers = servers + 'TEST_SERVER'
+                        }
+                        if (params.APOLLOANGULAR) {
+                                servers = 'TEST_SERVER'
+                        }
+                        cleanWs()
+                        currentBuild.description = 'Production Release' + params.GIT_BRANCH
+                    }
+                }
+            }
+        }
+/**
+  STAGE 2. Removing instance from taget groups.
+           AWS CLI configured on jenkins used to perform this task
+*/
+/**
+ STAGE 3. Doing Checkout of Production code using GITSCM plugin configured on the jenkins.
+*/
+stage('Code Checkout') {
+            parallel {
+            stage('JERSEY & SPRING Java Checkout For MARINER and EXPLORER') {
+                 when { expression { params.MARINER ||  params.EXPLORER } }
+                 steps{
+                    script {
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                 }
+            }
+            stage('ANGULAR Release Checkout APOLLO2') {
+                 when { expression { params.APOLLOANGULAR } }
+                 steps{
+                    script {
+                        angularRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch1}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL1}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                 }
+            }
+            stage('OPS Release Checkout ') {
+                 when { expression { params.OPS } }
+                 steps{
+                    script {
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                 }
+            }
+            stage('PHP Release Checkout For APOLLO') {
+                 when { expression { params.APOLLO } }
+                 steps{
+                    script {
+                            phpRepos.each { repo ->
+                                dir("html/${repo}") {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch1}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL1}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                 }
+            }
+        }
+    }
+/**
+STAGE 4.Running Maven Build on Services,Scheduler , doing composer install on yii2 framework and npm i and bg build on angular 
+*/
+         stage('Build'){
+                 parallel{
+
+                 stage('Building  Platform For MARINER and EXPLORER') {
+                    when { expression { params.MARINER ||  params.EXPLORER } }
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                     '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                 stage('Building Services For MARINER and EXPLORER') {
+                   when { expression { params.MARINER ||  params.EXPLORER } }
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                     '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building Repos For OPS') {
+                    when { expression { params.OPS } }
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                   '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
+                stage('Build Angular Services For Apollo Angular') {
+                    when {
+                        expression { params.APOLLOANGULAR }
+                    }
+                    steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                   cd lookin_frontend_next_js
+                                   
+                                   # Install project dependencies                                   
+                                     npm install
+
+
+       
+                                 '''
+                            }
+                        }
+                    }
+                }
+                 }
+
+            }
+/**
+   STAGE 5.Creating Patch (Running maven build,php composer and code packaging)
+*/  
+ 	 stage('Creating Java And PHP Patch')
+  	 {
+        parallel{
+       	 stage('Create PHP Patch'){
+                when { expression { params.APOLLO} }
+                steps {
+                  sh '''
+					cd html
+					cd todo
+					composer install
+					cd ..
+					cd ..
+					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					zip -r html.zip html/*
+					'''
+                }
+           }
+         }
+       }
+
+
+
+}
+// end of pipeline
+
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}

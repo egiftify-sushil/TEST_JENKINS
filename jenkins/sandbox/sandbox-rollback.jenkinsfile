@@ -1,0 +1,209 @@
+def SPR_NUMBER = ""
+def buildStatus = true;
+def attachment = false;
+def patchType = "";
+/**
+Pipeline for rollback process on Sandbox
+* STAGE 1. Verifying SPR Number
+* STAGE 2. Running rollback process.
+* STAGE 3. CDN syncing & invalidating assets using aws CLI
+* STAGE 4. Sending email notification
+*/
+pipeline {
+   agent any;
+   /**
+    User Inputs to run the pipeline process
+   */
+   parameters {
+        booleanParam(name: "JAVA_RELEASE", defaultValue: false)
+        booleanParam(name: "PHP_RELEASE", defaultValue: false)
+        choice( choices: ['SPR', 'UPR'], name: "Patch_Type")
+        string(name: "TAG_NUMBER", defaultValue: '', description: 'Provide Spr or Upr Number')
+    }
+    
+    stages{
+    
+/**
+  *STAGE 1.Verifying SPR param 
+  */
+         stage('Initiate Rollback'){
+             steps {
+             		 script {
+           			    if (params.patchType == '' || params.TAG_NUMBER =='') {
+					         currentBuild.result = 'ABORTED'
+					         error('SPR NUMBER Not  Defined…')
+					     }else{
+					          SPR_NUMBER = params.TAG_NUMBER;
+					          patchType = params.Patch_Type;
+					          currentBuild.description = patchType+" "+params.SPR_NUMBER
+					     }
+                       }
+                 }
+              }
+/**
+  *STAGE 2:- Running Rollback Process
+  */          
+           stage('Rollback'){
+	      	   parallel{
+		         stage('Rollback JAVA '){
+	              when { expression { params.JAVA_RELEASE } }
+	                   steps 
+	                   {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+					        execCommand: """cd /var/devops/backups
+							if [ ! -d 'webapps-${SPR_NUMBER}.zip' ]; then
+							cd /var/lib/tomcat9/webapps
+							sudo rm -rf  eg_lifeline_services/WEB-INF/lib/*
+							sudo rm -rf  eg_merchant_services/WEB-INF/lib/*
+							sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+							sudo rm -rf  eg_customer_services/WEB-INF/lib/*
+							sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
+							sudo rm -rf  eg_scheduler/WEB-INF/lib/*
+							cd /var/devops/backups
+							sudo unzip -o webapps-${SPR_NUMBER}.zip  -d /var/lib/tomcat9/webapps
+							fi """ , 
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+				            
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+				            transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+				            execCommand: '''cd /var/www/html/shfiles
+							sudo ./killSchedularProcess.sh
+							cd /opt/tomcat9/bin
+							sudo ./shutdown.sh >/dev/null
+							sleep 5
+							sudo ./startup.sh
+							sleep 10
+							cd /var/www/html/shfiles
+							sudo ./schedularProcess.sh''' , 
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+				            
+				          }
+	                 }
+		          stage('Rollback PHP'){
+	                when { expression { params.PHP_RELEASE } }
+	                    steps 
+	                    {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+					         execCommand: """cd /var/devops/backups
+							if [ ! -d 'html-${SPR_NUMBER}.zip' ]; then
+							rm -rf /var/www.html/eg_yii2_framework_v2/*
+							sudo unzip -o html-${SPR_NUMBER}.zip  -d /var/www/html
+							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							fi """ ,
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+							removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+							useWorkspaceInPromotion: false, verbose: true)])
+
+	                    }
+	                }   
+				 }
+			}
+
+ // STAGE 3.Syncing & Invalidating assets using aws CLI
+  
+            stage('CDN Sync')
+		      {
+		      when { expression {params.PHP_RELEASE} }
+                steps {
+        		sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+        		transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+        		execCommand: '''cd /home/devops
+				if [ ! -d "common" ]; then
+				     sudo mkdir common
+				     sudo mkdir common/css
+				     sudo mkdir common/js
+				fi
+				cd /var/www/html
+				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+				sudo rm -rf /home/devops/common/js/awss3.js
+				cd eg_yii2_framework_v2/egiftify_extensions
+				sudo aws s3 cp --recursive onboarding/js/ s3://egsandbox/public/js/common/
+				sudo aws s3 cp --recursive onboarding/css/ s3://egsandbox/public/css/common/
+				sudo aws s3 cp --recursive payment/js/ s3://egsandbox/public/js/common/
+				sudo aws s3 cp --recursive payment/css/ s3://egsandbox/public/css/common/
+				sudo aws s3 cp --recursive commonAssets/js/ s3://egsandbox/public/js/common/
+				sudo aws s3 cp --recursive commonAssets/css/ s3://egsandbox/public/css/common/
+				sudo aws s3 cp --recursive payment/images/ s3://egsandbox/public/images/common/
+				sudo aws s3 cp --recursive onboarding/images/ s3://egsandbox/public/images/common/
+				cd /var/www/html
+				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egsandbox/public/js/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egsandbox/public/js/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egsandbox/public/js/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egsandbox/public/js/merchant/
+				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egsandbox/public/js/common/
+				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egsandbox/public/css/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egsandbox/public/css/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egsandbox/public/css/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egsandbox/public/css/merchant/
+				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egsandbox/public/css/common/
+				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egsandbox/public/images/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egsandbox/public/images/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egsandbox/public/images/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egsandbox/public/images/merchant/
+				sudo aws cloudfront create-invalidation --distribution-id EVCA2IXYQTHK2 --paths "/js/*" "/css/*" "/images/*"
+				sudo rm -rf /home/devops/common/css/*
+				sudo rm -rf /home/devops/common/js/*''',  
+				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+				sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+				verbose: true)])
+               }
+			  }
+        }
+        
+          post {
+		         success {
+		                  script{
+		                      buildStatus = "SUCCESS"
+		                      }
+					     }   
+			     unstable {
+				          script{
+				           	  buildStatus = "UNSTABLE"
+				          }
+		               	}
+		         failure {
+			             script{
+				          	   buildStatus = "FAILED"
+			             }
+                 	   }
+              }  
+}
+/**
+  STAGE 10. Sending Email notification to developers
+ */
+ if(buildStatus == "SUCCESS")
+ {
+    subject = "${patchType} ${SPR_NUMBER} ROLLBACK SUCCESSFULLY DONE ON SANDBOX";
+    env.content = "${patchType} ${SPR_NUMBER} Rollback successfully done on sandbox."
+ }
+  else if(buildStatus == "UNSTABLE")
+ {
+    subject = "${patchType}  ${SPR_NUMBER}  ROLLBACK ON SANDBOX IS UNSTABLE";
+	env.content = "${patchType}  ${SPR_NUMBER} on Sandbox server is unstable. Please find the attachments for logs and take action accordingly"
+ 	attachment = true;
+ }
+ else
+ {
+    subject = "${patchType} ${SPR_NUMBER} ROLLBACK FAILED ON SANDBOX";
+	env.content = "${patchType} ${SPR_NUMBER} Rollback failed on sandbox. Please find the attachments for logs"
+ 	attachment = true;
+ } 
+ if(SPR_NUMBER!='' && patchType!='')
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
+ 
+
+ 
+ 

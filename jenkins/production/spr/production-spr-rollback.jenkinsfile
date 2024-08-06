@@ -1,0 +1,367 @@
+def SPR_NUMBER = ""
+def servers = "";
+def buildStatus = true;
+def attachment = false;
+/**
+Pipeline for rollback process
+* STAGE 1. Verifying SPR Number
+* STAGE 2. Removing mariner 1,apollo 1 from TG and adding Mariner 2 and Apollo 2  to TG 
+* STAGE 3. Running rollback process on MARINER 1 and APOLLO 1
+* STAGE 4. CDN syncing & invalidating assets using aws CLI
+* STAGE 5. Adding MARINER 1,APOLLO 1 and removing MARINER 2,APOLLO 2 From TG
+* STAGE 6. Running rollback process on MARINER 2 and APOLLO 2
+* STAGE 7. Adding MARINER 2 and APOLLO 2 to TG
+* STAGE 8. Running rollback on Explorer
+*/
+pipeline {
+   agent any;
+   /**
+    User Inputs to run the pipeline process
+   */
+   parameters {
+        booleanParam(name: "MARINER", defaultValue: false)
+        booleanParam(name: "APOLLO", defaultValue: false)
+        booleanParam(name: "EXPLORER", defaultValue: false)
+        string(name: "SPR_NUMBER", defaultValue: '', description: 'Provide Spr Number')
+    }
+    
+    stages{
+    
+/**
+  *STAGE 1.Verifying SPR param 
+  */
+         stage('Initiate Rollback'){
+             steps {
+             		 script {
+           			    if (params.SPR_NUMBER == '') {
+					         currentBuild.result = 'ABORTED'
+					         error('SPR NUMBER Not  Defined�')
+					     }else{
+					          SPR_NUMBER = params.SPR_NUMBER;
+					          currentBuild.description = "SPR "+params.SPR_NUMBER
+					     }
+                       }
+                 }
+              }
+/**
+  *STAGE 2:- Removing mariner 1,apollo 1 from TG and adding Mariner 2 and Apollo 2  to TG 
+  */
+   		  stage('Detach Server'){
+	      	   parallel{
+		         stage('Adding MARINER 2 & Removing MARINER 1'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+	                      sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce
+								sleep 10
+								aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446'''	 
+	                    }
+	                }
+		          stage('Adding APOLLO 2 & Removing APOLLO 1'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+			             	sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+								   aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a 
+								   aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+								   aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a 
+ 								   sleep 10
+ 								   aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+							       aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+							       aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+								   aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c'''
+	                    }
+	                }   
+				 }
+		    }
+/**
+  *STAGE 3:- Running Rollback Process on MARINER 1 and APOLLO 1
+  */          
+           stage('Rollback'){
+	      	   parallel{
+		         stage('Rollback MARINER 1'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: """cd /var/devops/backups
+							if [ ! -d 'webapps-${SPR_NUMBER}.zip' ]; then
+						    cd /var/lib/tomcat9/webapps
+							sudo rm -rf  ROOT/WEB-INF/lib/*
+							sudo rm -rf  es/WEB-INF/lib/*
+							sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+							sudo rm -rf  egCustomerServices/WEB-INF/lib/*
+							cd /var/devops/backups
+							sudo unzip -o webapps-${SPR_NUMBER}.zip  -d /var/lib/tomcat9/webapps
+							cd /opt/tomcat9/bin
+							sudo ./shutdown.sh
+							sleep 5
+							sudo ./startup.sh
+							fi """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+				          }
+	                 }
+		          stage('Rollback APOLLO 1'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', transfers: [sshTransfer(cleanRemote: false, excludes: '',
+					         execCommand: """cd /var/devops/backups
+							if [ ! -d 'html-${SPR_NUMBER}.zip' ]; then
+								sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+								sudo unzip -o html-${SPR_NUMBER}.zip  -d /var/www/html
+								sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							fi """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+
+	                    }
+	                }   
+				 }
+				 }
+/**
+  STAGE 4.Syncing & Invalidating assets using aws CLI
+*/  
+            stage('CDN Sync')
+		      {
+		      when { expression {params.APOLLO} }
+                steps {
+        		sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+				if [ ! -d "common" ]; then
+				     sudo mkdir common
+				     sudo mkdir common/css
+				     sudo mkdir common/js
+				fi
+				cd /var/www/html
+				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+				sudo rm -rf /home/devops/common/js/awss3.js
+				cd eg_yii2_framework_v2/egiftify_extensions
+				sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
+				sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
+				sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
+				sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
+				sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
+				cd /var/www/html
+				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
+				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
+				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
+				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
+				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
+				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
+				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
+				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
+				sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
+				sudo rm -rf /home/devops/common/css/*
+				sudo rm -rf /home/devops/common/js/*''', 
+				execTimeout: 0, flatten: false, 
+				makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+				usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+              }
+		  }
+		    
+		    
+/**
+  *STAGE 5:- Adding MARINER 1,APOLLO 1 and removing MARINER 2,APOLLO 2 From TG
+  */  
+   		  stage('Attach Server'){
+	      	   parallel{
+		         stage('Adding MARINER 1 & Removing MARINER 2'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+	                      sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
+								sleep 10
+							    aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
+
+	                    }
+	                }
+		          stage(' Adding APOLLO 1 & Removing APOLLO 2'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+				              sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
+								    sleep 10
+									aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+									aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+									aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+									aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+								  	
+	                    }
+	                }   
+				 }
+		     }
+/**
+  *STAGE 6:- Running Rollback Process on MARINER 2 and APOLLO 2
+  */  		     
+		     stage('Running Rollback Process on MARINER 2 and APOLLO 2'){
+	      	   parallel{
+		         stage('Rollback MARINER 2'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner2', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+					        execCommand: """cd /var/devops/backups
+							if [ ! -d 'webapps-${SPR_NUMBER}.zip' ]; then
+						    cd /var/lib/tomcat9/webapps
+							sudo rm -rf  ROOT/WEB-INF/lib/*
+							sudo rm -rf  es/WEB-INF/lib/*
+							sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+							sudo rm -rf  egCustomerServices/WEB-INF/lib/*
+							cd /var/devops/backups
+							sudo unzip -o webapps-${SPR_NUMBER}.zip  -d /var/lib/tomcat9/webapps
+							cd /opt/tomcat9/bin
+							sudo ./shutdown.sh
+							sleep 5
+							sudo ./startup.sh
+							fi """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+							sourceFiles: '')], usePromotionTimestamp: false, 
+							useWorkspaceInPromotion: false, verbose: true)])
+				          }
+	                 }
+		          stage('Rollback APOLLO 2'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo2', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+					        execCommand: """cd /var/devops/backups
+							if [ ! -d 'html-${SPR_NUMBER}.zip' ]; then
+							sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+							sudo unzip -o html-${SPR_NUMBER}.zip  -d /var/www/html
+							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							fi """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+							removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+							useWorkspaceInPromotion: false, verbose: true)])
+	                    }
+	                }   
+				 }
+		      }
+		      
+/**
+  *STAGE 7:- Adding MARINER 2 and APOLLO 2 To TG
+  */  
+   		  stage('Adding MARINER 2 & APOLLO 2'){
+	      	   parallel{
+		         stage('Adding MARINER 2 To TG'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+	                       sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
+					
+	                    }
+	                }
+		          stage(' Adding APOLLO 2 To TG'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+				            sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+								  aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+								  aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+								  aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+								  
+	                    }
+	                }   
+				 }
+		     }
+/**
+  *STAGE 8:- Running Rollback on Explorer
+  */  		    
+		   stage('Rollback on Explorer'){
+	                when { expression { params.EXPLORER } }
+	                   steps 
+	                   {
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+					        execCommand: """cd /var/devops/backups
+							if [ ! -d 'delivery-${SPR_NUMBER}.zip' ]; then
+						    cd /var/lib/tomcat9/webapps
+							sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
+							sudo rm -rf  eg_scheduler/lib/*
+							cd /var/devops/backups
+							sudo unzip -o delivery-${SPR_NUMBER}.zip  -d /var/lib/tomcat9/webapps
+							fi """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+							useWorkspaceInPromotion: false, verbose: true)])
+				        
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
+				            transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+				            execCommand: '''cd /var/www/html/shfiles
+							sudo ./newkillSchedularProcess.sh
+							cd /opt/tomcat9/bin
+							sudo ./shutdown.sh  2>/dev/null
+							sleep 5
+							sudo ./startup.sh
+							sleep 5
+							cd /var/www/html/shfiles
+							sudo ./schedularProcess.sh''' , execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+				        }
+	           }
+        }
+         post {
+		         success {
+		                  script{
+		                      buildStatus = "SUCCESS"
+		                      }
+					     }   
+			     unstable {
+				          script{
+				           	  buildStatus = "UNSTABLE"
+				          }
+		               	}
+		         failure {
+			             script{
+				          	   buildStatus = "FAILED"
+			             }
+                 	   }
+              }   
+}
+/**
+  STAGE 10. Sending Email notification to developers
+ */
+
+ if(buildStatus == "SUCCESS")
+ {
+    subject = "SPR ${SPR_NUMBER} ROLLBACK SUCCESSFULLY DONE ON PRODUCTION";
+    env.content = "SPR ${SPR_NUMBER} Rollback successfully done on production."
+ }
+ else if(buildStatus == "UNSTABLE")
+ {
+    subject = "SPR ${SPR_NUMBER} ROLLBACK ON ${servers} IS UNSTABLE";
+	env.content = "SPR ${SPR_NUMBER} Rollback done is unstable. Please find the attachments for logs and take action accordingly"
+ 	attachment = true;
+ } 
+ else
+ {
+     subject = "SPR ${SPR_NUMBER} ROLLBACK FAILED ON PRODUCTION";
+	env.content = "SPR ${SPR_NUMBER} Rollback failed on production. Please find the attachments for logs"
+ 	attachment = true;
+ } 
+ 
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
+ 
+ 

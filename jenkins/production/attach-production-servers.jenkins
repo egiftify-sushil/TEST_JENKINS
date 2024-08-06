@@ -1,0 +1,49 @@
+/**
+PRODUCTION PIPELINE : FILE TO ATTACH ALL SERVERS TO TG
+**/
+pipeline {
+   agent any;
+   /**
+    User Inputs to run the pipeline process
+   */
+   parameters {
+        booleanParam(name: "MARINER", defaultValue: false)
+        booleanParam(name: "APOLLO", defaultValue: false)
+    }
+
+  stages{
+ 	stage('Attach Servers'){
+	      	   parallel{
+		         stage('Adding MARINERS To TG'){
+	              when { expression { params.MARINER } }
+	                   steps 
+	                   {
+	                       sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
+						  		 aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/Mariner-Poynt-App/525c6909a28d1420 --targets Id=i-0a06ca56b6263d446
+								 sleep 10
+							     aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce
+								 aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/Mariner-Poynt-App/525c6909a28d1420 --targets Id=i-0202096e205e489ce'''	 
+		
+	                    }
+	                }
+		           stage('Adding APOLLOS To TG'){
+	                when { expression { params.APOLLO } }
+	                    steps 
+	                    {
+				              sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
+								    sleep 10
+									aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+									aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+									aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+								    aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+					
+	                    }
+	                }   
+				 }
+		      }
+		 }
+}		 
+		   

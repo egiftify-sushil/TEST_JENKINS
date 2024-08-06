@@ -1,0 +1,9 @@
+#FROM 347638288157.dkr.ecr.us-east-1.amazonaws.com/java14:1.0
+FROM java14:1.0
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+# Copy the WAR file into the webapps directory
+COPY target/eg_portal_services /usr/local/tomcat/webapps/eg_portal_services
+
+# Set the default command to start Tomcat
+CMD ["catalina.sh", "run"]

@@ -1,0 +1,601 @@
+/**
+THIS FILE UPLOADS UPR ON SANDBOX SERVER
+
+We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
+There are 9 main stages involved in releasing the upr
+STAGE 1:-  Verifying upr param and deleting pipeline workspace.
+STAGE 2:-  Taking backup of old codes on servers in /var/devops/backups/{codbase}-uprNumber.zip
+STAGE 3:-  Java main branch checkout and builds for partial build process.
+STAGE 4:-  Doing patch checkout of services,php and scheduler
+STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework & creating patch
+STAGE 6:-  Deploying patch on Sandbox.
+STAGE 7:-  Invalidating assets 
+STAGE 9:-  Sending Email notification to developers.
+
+PLUGINS USED:-
+sshPublisher:- To upload folder and to execute ssh script on remote server 
+CVSSCM:- To checkout the code from repository server
+
+**/
+def branchname = ""
+def uprNumber = "";
+def buildStatus = true;
+def attachment = false;
+pipeline {
+
+     /** Defining workspace for the node **/
+     agent any;
+    /**
+     Setting jdk for java build
+    */
+     tools {
+       jdk "jdk14"
+     }
+     /**
+       Params to define which codebase we want to upload 
+     */
+    parameters {
+        booleanParam(name: "SERVICES_RELEASE", defaultValue: false)
+        booleanParam(name: "PHP_RELEASE", defaultValue: false)
+        booleanParam(name: "DELIVERY_RELEASE", defaultValue: false)
+        string(name: "MAIN_BRANCH", defaultValue: '', description: 'Provide Main Branch Name')
+        string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
+    }
+    stages {        
+/**
+  STAGE 1.Verifying upr param and Deleting Pipeline Workspace
+*/
+         stage('Initiate UPR RELEASE'){
+             steps {
+             		 script {
+           			    if (params.UPR_NUMBER == '' || params.MAIN_BRANCH =='') {
+					         currentBuild.result = 'ABORTED'
+					         error('UPR NUMBER Not  Defined…')
+					     }else{
+					          uprNumber = params.UPR_NUMBER;
+					          branchname = params.MAIN_BRANCH
+					          cleanWs()
+					          currentBuild.description = "UPR " + params.UPR_NUMBER
+					     }
+                       }
+                   }
+             }
+/**
+ STAGE 2. Taking backup of old codes on servers in /var/devops/backups/ dir
+          ssh plugin used to excute the ssh  command on  remote servers
+*/
+    stage('Backup'){
+     parallel{
+      stage('Java'){
+         when { expression { params.SERVICES_RELEASE || params.DELIVERY_RELEASE } }
+           steps {
+		            sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox',
+		            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+		            execCommand: """cd /var/devops/backups
+					rm -rf webapps*
+					cd /var/lib/tomcat9/webapps
+					sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  eg_merchant_services eg_lifeline_services eg_portal_services eg_customer_services eg_scheduler_services eg_scheduler""" ,
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            } 
+            stage('PHP'){
+            when { expression { params.PHP_RELEASE } }
+             steps {
+		            sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+		            transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		            execCommand: """cd /var/devops/backups
+					rm -rf html*
+				    cd /var/www/html
+					sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" , 
+					execTimeout: 0, flatten: false, makeEmptyDirs: false,
+					noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            }  
+          }
+         } 
+/**
+ STAGE 3. Doing Checkout of JAVA Main Branch code using CVSSCM plugin configured on the jenkins.
+          Main branch code is required to perform the partial builds . Also we are creating jars
+          of the main services so that they can be used  as a dependency in the partial builds      
+ */      
+       stage('Main Branch Checkout'){
+		       stages {
+		         stage('Services'){
+            	   when { expression { params.SERVICES_RELEASE || params.DELIVERY_RELEASE } }
+	                 steps {
+				              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+				              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+				              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+				              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+				              modules: [[localName: 'eg_objects', remoteName: 'eg_objects'], 
+				              [localName: 'eg_platform', remoteName: 'eg_platform'], 
+				              [localName: 'scheduler_base', remoteName: 'scheduler_base'], 
+				              [localName: 'eg_portal_services', remoteName: 'eg_portal_services'], 
+				              [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'], 
+				              [localName: 'eg_customer_services', remoteName: 'eg_customer_services'], 
+				              [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],
+				              [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services']]]]]], 
+				              skipChangeLog: false]
+			               }
+	                    }
+                 }
+		         stage('Building  Platform') {
+		             when { expression { params.SERVICES_RELEASE || params.DELIVERY_RELEASE } }
+			               steps{
+			                      sh '''cd eg_objects
+										mvn clean
+										mvn install -U
+										cd ..
+										cd eg_platform
+										cd platform
+										mvn clean
+										mvn install -U
+										cd ..
+										mvn clean
+										mvn install -U 
+										cd ..
+										'''
+			                    } 
+		            }
+		           stage('Build') {
+			               parallel {
+				              		 stage('Portal Services') {
+				              		  when { expression { params.SERVICES_RELEASE } }
+						                 steps {
+									             sh '''
+													cd eg_portal_services
+													mvn clean
+													mvn install -Dpackaging.type=jar -U
+													cd ..
+													rm -rf eg_portal_services
+													'''
+						                     }
+				                  		 }
+				                  	 stage('Customer Services') {
+				                  	  when { expression { params.SERVICES_RELEASE } }
+					                      steps {
+								             sh '''
+												cd eg_customer_services
+												mvn clean
+												mvn install -Dpackaging.type=jar -U
+												cd ..
+												rm -rf eg_customer_services
+												'''
+					                     }
+				                   	}
+				                    stage('Lifeline Services') {
+				                     when { expression { params.SERVICES_RELEASE } }
+					                      steps {
+								             sh '''
+												cd eg_lifeline_services
+												mvn clean
+												mvn install -Dpackaging.type=jar -U
+												cd ..
+												rm -rf eg_lifeline_services
+												'''
+					                     }
+				                   }
+				                   stage('Merchant Services') {
+				                    when { expression { params.SERVICES_RELEASE } }
+				                      steps {
+							             sh '''
+											cd eg_merchant_services
+											mvn clean
+											mvn install -Dpackaging.type=jar -U
+											cd ..
+											rm -rf eg_merchant_services
+											'''
+				                     }
+				                   }
+				                  stage('Scheduler Services') {
+				                    when { expression { params.DELIVERY_RELEASE  } }
+				                      steps {
+							             sh '''
+							            	cd scheduler_base
+											mvn clean
+											mvn install -U
+											cd ..
+											cd eg_scheduler_services
+											mvn clean
+											mvn install -Dpackaging.type=jar -U
+											cd ..
+											rm -rf eg_scheduler_services
+											'''
+				                     }
+				                   }
+			                   }
+		                   }
+		              }  
+        	     } 
+/**
+  STAGE 4.Doing Patch Checkout of java,php and scheduler
+ */  	                        
+         stage('Patch Checkout'){
+               parallel{
+	                 stage('Services Checkout'){
+	                  	when { expression { params.SERVICES_RELEASE } }
+		                  steps {
+					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+					              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false], 
+					              modules: [
+					              [localName: 'eg_portal_services', remoteName: 'eg_portal_services'],
+					              [localName: 'eg_customer_services', remoteName: 'eg_customer_services'],
+					              [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'],
+					              [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],]]]]], 
+					              skipChangeLog: false]
+				               }
+		                   }
+	                    }
+	                   stage('Scheduler Checkout'){
+	                  	  when { expression { params.DELIVERY_RELEASE } }
+		                  steps {
+					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+					              modules: [
+					              [localName: 'eg_scheduler', remoteName: 'eg_scheduler']]]]]], 
+					              skipChangeLog: false]
+		                         }
+	                        }
+	                       }  
+	                      stage('Scheduler Services Checkout'){
+	                       when { expression { params.DELIVERY_RELEASE } }
+			                  steps {
+						              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+						              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
+						              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+						              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false], 
+						              modules: [
+						              [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services'],]]]]], 
+						              skipChangeLog: false]
+			                         }
+		                        }
+	                       } 
+	                  stage('PHP Checkout'){
+	                  	when { expression { params.PHP_RELEASE } }
+		                  steps {   
+		                       withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false],
+					              modules: [
+					              [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'], 
+					              [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'], 
+					              [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'], 
+					              [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2']]]]]], 
+					              skipChangeLog: false]
+	                            }
+                           }
+                        }
+                      stage('PHP Framework Checkout'){
+	                  	when { expression { params.PHP_RELEASE } }
+		                  steps {
+					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+					              modules: [
+					              [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]], 
+					              skipChangeLog: false]
+		                         }
+	                        }
+	                     }  
+                    }
+                 }
+/**
+   STAGE 5.Creating Patch (Running maven build,php composer and code packaging)
+ */  
+           stage('Create Patch'){
+                 parallel{
+                    stage('Creating Services Patch'){
+                      when { expression { params.SERVICES_RELEASE } }
+                        steps {
+                          sh '''
+                            mkdir webapps
+                            mkdir webapps/eg_lifeline_services
+			                mkdir webapps/eg_merchant_services
+							mkdir webapps/eg_customer_services
+							mkdir webapps/eg_portal_services
+                            if [ -d "eg_portal_services" ]; then
+ 								cd eg_portal_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								sudo rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
+								sudo rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
+								cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
+							    cd ..
+							fi
+							if [ -d "eg_customer_services" ]; then
+ 								cd eg_customer_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
+								cp -r target/eg_customer_services-partial/* ../webapps/eg_customer_services
+							    cd ..
+							fi
+							if [ -d "eg_lifeline_services" ]; then
+ 								cd eg_lifeline_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
+								cp -r target/eg_lifeline_services-partial/* ../webapps/eg_lifeline_services
+							    cd ..
+							fi
+							if [ -d "eg_merchant_services" ]; then
+ 								cd eg_merchant_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
+								cp -r target/eg_merchant_services-partial/* ../webapps/eg_merchant_services
+							    cd ..
+							fi
+							
+							zip -r webapps.zip webapps
+							'''
+                        }
+                      }
+                       stage('Creating Scheduler Patch'){
+                        when { expression { params.DELIVERY_RELEASE} }
+                        steps {
+                          sh '''
+                            if [ ! -d "deliverywebapps" ]; then
+                              mkdir deliverywebapps
+                              mkdir deliverywebapps/eg_scheduler_services
+                          	  mkdir deliverywebapps/eg_scheduler
+ 							  mkdir deliverywebapps/eg_scheduler/lib
+                             fi
+                            if [ -d "eg_scheduler_services" ]; then
+ 								cd eg_scheduler_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_*
+								cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
+								cd ..
+							fi
+							cd eg_scheduler
+							mvn clean
+							mvn package
+							cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
+							cd ..
+							cd deliverywebapps
+							zip -r ../delivery_webapps.zip  eg_scheduler eg_scheduler_services
+							'''
+                        }
+                     }
+                      stage('Creating PHP Patch'){
+                        when { expression { params.PHP_RELEASE} }
+                        steps {
+                          sh '''
+							cd html
+							cd eg_yii2_framework_v2
+							composer install
+							cd ..
+							cd ..
+							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+							zip -r html.zip html/*
+							'''
+                        }
+                      }
+                    }
+                 }
+/**
+ STAGE 6. Deploying Patch on servers with the help of sshPublisher plugin
+*/ 
+           stage('Deploy Patch'){
+                 parallel{
+                    stage('Deploying Services'){
+                      when { expression {  params.SERVICES_RELEASE} }
+                        steps {
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+  				         execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+  				         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+  				         removePrefix: '', sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, 
+  				         useWorkspaceInPromotion: false, verbose: false)])
+  				        
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                        execCommand: '''cd /home/devops
+						sudo unzip -o webapps.zip 
+						cd webapps
+						if [ -d "eg_lifeline_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_merchant_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_merchant_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_portal_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_customer_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_customer_services/WEB-INF/lib/*
+						fi
+						cd /home/devops
+						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+						sudo rm -rf webapps*''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+                       }
+                      }
+                       stage('Deploying Scheduler Patch'){
+                        when { expression { params.DELIVERY_RELEASE} }
+	                        steps {
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	                        removePrefix: '', sourceFiles: 'delivery_webapps.zip')], usePromotionTimestamp: false, 
+	                        useWorkspaceInPromotion: false, verbose: false)])
+	                        
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+	                        execCommand: '''cd /home/devops
+							sudo unzip -o delivery_webapps.zip 
+							if [ -d "eg_scheduler_services" ]; then
+							  sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
+							fi
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
+							sudo unzip -o delivery_webapps.zip -d /var/lib/tomcat9/webapps/
+							sudo rm -rf /home/devops/delivery_webapps.zip
+							sudo rm -rf /home/devops/eg*''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+                          }
+                       }
+                      stage('Deploying PHP Patch'){
+                        when { expression { params.PHP_RELEASE} }
+	                        steps {
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	                        removePrefix: '', sourceFiles: 'html.zip')], usePromotionTimestamp: false, 
+	                        useWorkspaceInPromotion: false, verbose: false)])
+	                        
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	                        execCommand: '''cd /home/devops
+							sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+							sudo unzip -o html.zip -d /var/www/
+							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							sudo rm -rf /home/devops/html.zip''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+                          }
+                       }
+                    }
+                  }
+               
+           stage('Restart Server'){
+            when { expression {  params.SERVICES_RELEASE || params.DELIVERY_RELEASE} }
+               steps{
+                    sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+                    transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+                    execCommand: '''cd /var/www/html/shfiles
+					sudo ./killSchedularProcess.sh
+					cd /opt/tomcat9/bin
+					sudo ./shutdown.sh 2>/dev/null
+					sleep 5
+					sudo ./startup.sh
+					sleep 5
+					cd /var/www/html/shfiles
+					sudo ./schedularProcess.sh''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+					noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+					remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+               }
+            }
+    
+/**
+  STAGE 7.Syncing & Invalidating assets using aws CLI
+*/  
+            stage('CDN Sync')
+		      {
+		      when { expression { params.PHP_RELEASE} }
+                steps {
+       				 sshPublisher(publishers: [sshPublisherDesc(configName: 'Sandbox', 
+       				 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+       				 execCommand: '''cd /home/devops
+						if [ ! -d "common" ]; then
+						     sudo mkdir common
+						     sudo mkdir common/css
+						     sudo mkdir common/js
+						fi
+						cd /var/www/html
+						find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+						find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+						sudo rm -rf /home/devops/common/js/awss3.js
+						cd eg_yii2_framework_v2/egiftify_extensions
+						sudo aws s3 cp --recursive onboarding/js/ s3://egsandbox/public/js/common/
+						sudo aws s3 cp --recursive onboarding/css/ s3://egsandbox/public/css/common/
+						sudo aws s3 cp --recursive payment/js/ s3://egsandbox/public/js/common/
+						sudo aws s3 cp --recursive payment/css/ s3://egsandbox/public/css/common/
+						sudo aws s3 cp --recursive commonAssets/js/ s3://egsandbox/public/js/common/
+						sudo aws s3 cp --recursive commonAssets/css/ s3://egsandbox/public/css/common/
+						sudo aws s3 cp --recursive payment/images/ s3://egsandbox/public/images/common/
+						sudo aws s3 cp --recursive onboarding/images/ s3://egsandbox/public/images/common/
+						cd /var/www/html
+						sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egsandbox/public/js/marketplace/
+						sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egsandbox/public/js/staff/
+						sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egsandbox/public/js/reseller/
+						sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egsandbox/public/js/merchant/
+						sudo aws s3 cp --recursive /home/devops/common/js/ s3://egsandbox/public/js/common/
+						sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egsandbox/public/css/marketplace/
+						sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egsandbox/public/css/staff/
+						sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egsandbox/public/css/reseller/
+						sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egsandbox/public/css/merchant/
+						sudo aws s3 cp --recursive /home/devops/common/css/ s3://egsandbox/public/css/common/
+						sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egsandbox/public/images/marketplace/
+						sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egsandbox/public/images/staff/
+						sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egsandbox/public/images/reseller/
+						sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egsandbox/public/images/merchant/
+						sudo aws cloudfront create-invalidation --distribution-id EVCA2IXYQTHK2 --paths "/js/*" "/css/*" "/images/*"
+						sudo rm -rf /home/devops/common/css/*
+						sudo rm -rf /home/devops/common/js/*''', 
+						execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+						sourceFiles: '')], usePromotionTimestamp: false, 
+						useWorkspaceInPromotion: false, verbose: true)])
+                      }
+			  }
+         }  
+          post {
+		         success {
+		                  script{
+		                      buildStatus = "SUCCESS"
+		                      }
+					     }   
+			     unstable {
+				          script{
+				           	  buildStatus = "UNSTABLE"
+				          }
+		               	}
+		         failure {
+			             script{
+				          	   buildStatus = "FAILED"
+			             }
+                 	   }
+              }       
+       }
+ 
+ /**
+  STAGE 8. Sending Email notification to developers
+ */
+ if(buildStatus == "SUCCESS")
+ {
+    subject = "UPR ${uprNumber} SUCCESSFULLY DEPLOYED ON SANDBOX";
+    env.content = "UPR ${uprNumber} is successfully deployed on Sandbox. Testing on the servers is underway"
+ }
+  else if(buildStatus == "UNSTABLE")
+ {
+    subject = "UPR ${uprNumber}  BUILD NUMBER  DEPLOYED ON SANDBOX IS UNSTABLE";
+	env.content = "UPR ${uprNumber}  deployed on Sandbox server is unstable. Please find the attachments for logs and take action accordingly"
+ 	attachment = true;
+ }
+ else
+ {
+    subject = "UPR ${uprNumber} FAILED TO DEPLOY ON SANDBOX";
+	env.content = "UPR ${uprNumber} is unstable and failed to deploy on Sandbox. Please find the attachments for logs"
+ 	attachment = true;
+ } 
+if(branchname != '' &&  uprNumber != '')
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
+ 
