@@ -1,22 +1,23 @@
 
 def gitbranch = ''
-
+def gitbranch1 = '1.0.0'
 def buildStatus = true
 def attachment = false
 def sqlFilePath = ''
 
-def nuxtRepos = [
-    'eslint',
+def nuxtlibrariesRepos = [
     'eslint_plugin',
+    'eslint',
     'fe_communicator',
-    'fe_ts_utils',
-    'js_object_library',
-    'nuxt_common_modules',
     'nuxt_famework',
+    'fe_ts_utils',
+]
+def nuxtRepos=[
+    'js_object_library',    
     'nuxt_object_library',
+    'nuxt_common_modules',
     'nuxt_staff'
 ]
-
 
 pipeline {
     agent any
@@ -63,8 +64,8 @@ pipeline {
              
        
                 stage('Nuxt Repos Checkout') {
-                   
-
+                   parallel {
+                   stage('Spring common Libraries') {
                     steps {
                         script {
                             nuxtRepos.each { repo ->
@@ -78,6 +79,25 @@ pipeline {
                             }
                         }
                     }
+                  }
+
+                   stage('Spring common Libraries') {
+                   
+                    steps {
+                        script {
+                            nuxtlibrariesRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch1}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+                 }
                 }
 
               
