@@ -39,13 +39,8 @@ def springcommonRepos = [
     'jersey_object_library'
 ]
 pipeline {
-     /** Defining workspace for the node **/
-    // agent {
-    //     node {
-    //                 label ''
-    //                 customWorkspace '/var/devops/spr/'
-    //       }
-    // }
+    
+
     agent any
     /**
      Setting jdk for java build

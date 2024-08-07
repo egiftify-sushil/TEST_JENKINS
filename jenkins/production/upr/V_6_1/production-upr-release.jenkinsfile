@@ -40,12 +40,7 @@ def springcommonRepos = [
 ]
 pipeline {
      /** Defining workspace for the node **/
-    // agent {
-    //     node {
-    //                 label ''
-    //                 customWorkspace '/var/devops/upr/'
-    //     }
-    // }
+ 
     agent any
     
     /**
