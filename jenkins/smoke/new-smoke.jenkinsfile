@@ -89,7 +89,7 @@ pipeline {
                         }
                         }
                     }
-                }
+                
                  stage('PHP common Libraries') {
                     when { expression { params.PHP_RELEASE } }
 
