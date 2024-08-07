@@ -68,7 +68,7 @@ pipeline {
          STAGE 2: Doing GIT Repos Checkout Parallely
          */
              
-        // stage('Common Repos Checkout') {
+         stage('Common Repos Checkout') {
             parallel {
                 stage('platform') {
                     when { expression { params.OPS_RELEASE } }
@@ -109,6 +109,7 @@ pipeline {
                     }
                 }
             }
+         }
     
             
         
