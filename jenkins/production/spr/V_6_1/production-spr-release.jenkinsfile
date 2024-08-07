@@ -46,6 +46,7 @@ pipeline {
     //                 customWorkspace '/var/devops/spr/'
     //       }
     // }
+    
     agent any
     /**
      Setting jdk for java build
