@@ -62,22 +62,23 @@ pipeline {
     
              
        
-        stage('Nuxt Repos Checkout') {
-            steps {
-                script {
-                    nuxtRepos.each { repo ->
-                        dir(repo) {
-                            // Clean up the directory if it already exists
-                            sh "rm -rf ${repo}"
+                stage('Nuxt Repos Checkout') {
+                   
 
-                            // Clone the repository
-                            sh "git clone -b ${gitbranch} ${GitUrl}/${repo}.git ${repo}"
+                    steps {
+                        script {
+                            nuxtRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
+                                    ])
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
-
 
               
                
