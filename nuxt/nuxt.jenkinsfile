@@ -65,7 +65,7 @@ pipeline {
        
                 stage('Nuxt Repos Checkout') {
                    parallel {
-                   stage('Spring common Libraries') {
+                   stage('Nuxt Libraries') {
                     steps {
                         script {
                             nuxtRepos.each { repo ->
@@ -81,7 +81,7 @@ pipeline {
                     }
                   }
 
-                   stage('Spring common Libraries') {
+                   stage('Nuxt Repos') {
                    
                     steps {
                         script {
