@@ -17,7 +17,7 @@ CVSSCM:- To checkout the code from CVS repository server
 GITSCM:- To checkout the code from GIT repository server
 **/
 def branchname = 'V_6_1'
-def gitbranch = '6.1.0'
+def gitbranch = ''
 def buildStatus = true
 def attachment = false
 // common jars
@@ -43,6 +43,7 @@ pipeline {
         booleanParam(name: 'JAVA_RELEASE', defaultValue: true)
         booleanParam(name: 'PHP_RELEASE', defaultValue: true)
         booleanParam(name: 'OPS_RELEASE', defaultValue: false)
+        string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
     }
     stages {
@@ -53,6 +54,7 @@ pipeline {
             steps {
                 script
                 {
+                    gitbranch = params.GIT_BRANCH_NAME
                     cleanWs()
                 }
             }
