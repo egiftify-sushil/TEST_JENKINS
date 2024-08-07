@@ -67,7 +67,6 @@ pipeline {
         /**
          STAGE 2: Doing GIT Repos Checkout Parallely
          */
-    
              
         // stage('Common Repos Checkout') {
             parallel {
@@ -110,7 +109,7 @@ pipeline {
                     }
                 }
             }
-        }
+    
             
         
 /** 
@@ -305,7 +304,8 @@ pipeline {
          STAGE 8: Running DB Script If Any
          */
      
-    }
+
+
 
     post {
         success {
