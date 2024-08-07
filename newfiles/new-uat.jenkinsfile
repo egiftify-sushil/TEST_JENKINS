@@ -1,0 +1,361 @@
+
+def gitbranchname = ''
+def gitbranchname1 = 'main'
+def buildStatus = true
+def attachment = false
+def sqlFilePath = ''
+
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+]
+def jersseyRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+def phpRepos = [
+    'todo',
+    'Edtech',
+    'grocery'    
+]
+def angularRepos = [
+    'prodgy'
+]
+
+pipeline {
+    agent any
+    environment {
+        GIT_URL = "${env.GIT_URL}"
+         GIT_URL1 = "${env.GIT_URL1}"
+    }
+
+    tools {
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
+
+    parameters {
+        booleanParam(name: 'JERSEY_RELEASE', defaultValue: true)
+        booleanParam(name: 'PHP_RELEASE', defaultValue: true)
+        // booleanParam(name: 'ANGULAR_RELEASE', defaultValue: true)
+        booleanParam(name: 'OPS_RELEASE', defaultValue: true)
+        string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
+       
+        string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
+    }
+
+    stages {
+        /**
+         STAGE 1: Deleting Pipeline Workspace
+         */
+        stage('Preparing For UAT Upload') {
+            steps {
+                script {
+                   
+                    gitbranchname = params.GIT_BRANCH_NAME
+                   
+                    sqlFilePath = params.DB_FILE_PATH
+
+                    // Clean workspace
+                    cleanWs()
+
+                    // Set build description with both branch names
+                   
+                }
+            }
+        }
+
+        /**
+         STAGE 2: Doing GIT Repos Checkout Parallely
+         */
+    
+             
+        stage('Common Repos Checkout') {
+            parallel {
+                stage('platform') {
+                    when { expression { params.OPS_RELEASE } }
+
+                    steps {
+                        script {
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranchname}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Spring common Libraries') {
+                    when { expression { params.JERSEY_RELEASE } }
+
+                    steps {
+                        script {
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranchname}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+                 stage('PHP common Libraries') {
+                    when { expression { params.PHP_RELEASE } }
+
+                    steps {
+                        script {
+                            phpRepos.each { repo ->
+                                dir("html/${repo}") {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranchname1}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL1}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Angular common Libraries') {
+                    when { expression { params.ANGULAR_RELEASE } }
+
+                    steps {
+                        script {
+                            angularRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranchname1}"]],
+                                        userRemoteConfigs: [[url: "${GIT_URL1}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+            
+        
+/** 
+  STAGE 3.Running Maven Build on Platform (objects,platform,scheduler)
+*/          
+         stage('Build'){
+                 parallel{
+
+                stage('Building  Platform') {
+                when { expression { params.JERSEY_RELEASE } }
+
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                     '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building PORTAL Services') {
+                when { expression { params.JERSEY_RELEASE } }
+
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            jersseyRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                     '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building Platform For OPS') {
+                    when { expression { params.OPS_RELEASE } }
+
+                    steps {
+                        script {
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                             ]
+
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    sh '''
+                                find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                   '''
+
+                                    // Execute Maven commands
+                                    mavenCommands.each { command ->
+                                        sh command
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
+                stage('Build Angular Services') {
+                    when {
+                        expression { params.ANGULAR_RELEASE }
+                    }
+                    steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                   cd prodgy
+                                   
+                                   # Install project dependencies                                   
+                                     npm install
+
+                                   # Build the project
+                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                   # Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     else
+                                     mkdir -p ../../html
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     fi
+       
+                                 '''
+                            }
+                        }
+                    }
+                }
+                 }
+
+            }
+/**
+   STAGE 4.Creating Patch (Running maven build,php composer and code packaging)
+*/  
+ 	 stage('Create Patch')
+  	 {
+        parallel{
+        stage('Create Services & Scheduler Patch'){
+          when { expression { params.JAVA_RELEASE} }
+            steps {
+               sh '''
+               mkdir webapps
+               mkdir webapps/eg_portal_services
+               mkdir webapps/eg_customer_services
+               mkdir webapps/eg_merchant_services
+               mkdir webapps/eg_lifeline_services
+               mkdir webapps/eg_scheduler_services
+               mkdir webapps/eg_scheduler
+               mkdir webapps/eg_scheduler/lib
+                if [ -d "eg_portal_services" ]; then
+					cd eg_portal_services
+					unzip -o target/eg_portal_services.war -d ../webapps/eg_portal_services
+					cd ..
+				fi
+                if [ -d "eg_customer_services" ]; then
+					cd eg_customer_services
+					unzip -o target/eg_customer_services.war -d ../webapps/eg_customer_services
+				    cd ..
+				 fi
+                 if [ -d "eg_lifeline_services" ]; then
+					cd eg_lifeline_services
+					unzip -o target/eg_lifeline_services.war -d ../webapps/eg_lifeline_services
+					cd ..
+				  fi
+                  if [ -d "eg_merchant_services" ]; then
+				     cd eg_merchant_services
+					 unzip -o target/eg_merchant_services.war -d ../webapps/eg_merchant_services
+					  cd ..
+				 fi
+                 if [ -d "eg_scheduler_services" ]; then
+					cd eg_scheduler_services
+					unzip -o target/eg_scheduler_services.war -d ../webapps/eg_scheduler_services
+				    cd ..
+				  fi
+                  if [ -d "eg_scheduler" ]; then
+					  cd eg_scheduler
+					  cp -r target/lib/* ../webapps/eg_scheduler/lib
+					  cd ..
+					fi
+				   zip -r webapps.zip webapps'''
+				  }
+           }
+       	 stage('Create PHP Patch'){
+                when { expression { params.PHP_RELEASE} }
+                steps {
+                  sh '''
+					cd html
+					cd todo
+					composer install
+					cd ..
+					cd ..
+					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					zip -r html.zip html/*
+					'''
+                }
+           }
+         }
+       }
+        /**
+         STAGE 8: Running DB Script If Any
+         */
+     
+    }
+
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}

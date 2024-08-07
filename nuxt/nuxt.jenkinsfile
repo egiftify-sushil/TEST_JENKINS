@@ -1,0 +1,116 @@
+
+def gitbranch = ''
+
+def buildStatus = true
+def attachment = false
+def sqlFilePath = ''
+
+def nuxtRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+]
+
+
+pipeline {
+    agent any
+    
+
+    tools {
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
+
+    parameters {
+      
+        string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
+       
+        string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
+    }
+
+    stages {
+        /**
+         STAGE 1: Deleting Pipeline Workspace
+         */
+        stage('Preparing For UAT Upload') {
+            steps {
+                script {
+                   
+                    gitbranch = params.GIT_BRANCH_NAME
+                   
+                    sqlFilePath = params.DB_FILE_PATH
+
+                    // Clean workspace
+                    cleanWs()
+
+                    // Set build description with both branch names
+                   
+                }
+            }
+        }
+
+        /**
+         STAGE 2: Doing GIT Repos Checkout Parallely
+         */
+    
+             
+       
+                stage('Nuxt Repos Checkout') {
+                   
+
+                    steps {
+                        script {
+                            nuxtRepos.each { repo ->
+                                dir(repo) {
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
+                                    ])
+                                }
+                            }
+                        }
+                    }
+                }
+
+              
+               
+               
+           
+            
+        
+/** 
+  STAGE 3.Running Maven Build on Platform (objects,platform,scheduler)
+*/          
+
+         
+/**
+   STAGE 4.Creating Patch (Running maven build,php composer and code packaging)
+*/  
+ 	 
+        /**
+         STAGE 8: Running DB Script If Any
+         */
+     
+    }
+
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}
