@@ -65,7 +65,7 @@ pipeline {
        
                 stage('Nuxt Repos Checkout') {
                    parallel {
-                   stage('Spring common Libraries') {
+                   stage('Nuxt Libraries') {
                     steps {
                         script {
                             nuxtRepos.each { repo ->
@@ -81,7 +81,7 @@ pipeline {
                     }
                   }
 
-                   stage('Spring common Libraries') {
+                   stage('Nuxt Repos') {
                    
                     steps {
                         script {
@@ -90,7 +90,7 @@ pipeline {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranch1}"]],
-                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
                                     ])
                                 }
                             }
