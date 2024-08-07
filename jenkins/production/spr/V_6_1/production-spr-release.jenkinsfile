@@ -21,7 +21,7 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
-def gitbranch = '6.1.0'
+def gitbranch = ''
 def sprNumber = ''
 def servers = ''
 def buildStatus = 'SUCCESS'
@@ -63,6 +63,8 @@ pipeline {
         booleanParam(name: 'MARINER', defaultValue: false)
         booleanParam(name: 'APOLLO', defaultValue: false)
         booleanParam(name: 'EXPLORER', defaultValue: false)
+         string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
+         
         //  booleanParam(name: "APOLLOANGULAR", defaultValue: false)
         // for apolo-angular
         string(name: 'SPR_NUMBER', defaultValue: '', description: 'Provide SPR Number')
@@ -78,6 +80,7 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                         error('SPR NUMBER Not  Defined�')
                          }else {
+                            gitbranch = params.GIT_BRANCH_NAME
                         sprNumber = params.SPR_NUMBER
                         if (params.OPS) {
                                 servers = 'TEST_SERVER'
