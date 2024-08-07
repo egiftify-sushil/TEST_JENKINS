@@ -38,10 +38,6 @@ def springcommonRepos = [
 
 pipeline {
     agent any
-    environment {
-        GIT_URL = "${env.GIT_URL}"
-    }
-
     tools {
         jdk 'jdk14'
         jdk 'jdk17'
@@ -161,7 +157,7 @@ pipeline {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
                                     ])
                                 }
                             }
@@ -179,7 +175,7 @@ pipeline {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo1}.git"]]
+                                        userRemoteConfigs: [[url: "${GitUrl}/${repo1}.git"]]
                                     ])
                                 }
                             }
@@ -337,7 +333,7 @@ pipeline {
         /**
          STAGE 5: Creating Patch (Code Packaging)
          */
-        stage('Create Patch')s
+        stage('Create Patch')
        {
             parallel {
                 stage('Create Services & Scheduler Patch') {
