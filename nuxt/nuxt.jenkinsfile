@@ -23,7 +23,7 @@ pipeline {
     tools {
         jdk 'jdk14'
         jdk 'jdk17'
-        nodejs 'nodejs14'
+        nodejs 'nodejs18'
     }
 
     parameters {
@@ -76,6 +76,15 @@ pipeline {
                 }
             }
         }
+        stage('platform') {
+                    when { expression { params.OPS_RELEASE } }
+
+                    steps {
+                        script {
+                           echo(node -v)
+                        }
+                    }
+                }
     }
 
     post {
