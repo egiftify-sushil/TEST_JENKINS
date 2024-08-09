@@ -80,14 +80,16 @@ pipeline {
 
                     steps {
                         script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
                             springplatformRepos.each { repo ->
                                 dir(repo) {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
                                 }
+                            }
                             }
                         }
                     }
@@ -98,14 +100,16 @@ pipeline {
 
                     steps {
                         script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
                             jersseyRepos.each { repo ->
                                 dir(repo) {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GIT_URL}/${repo}.git"]]
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
                                 }
+                            }
                             }
                         }
                     }

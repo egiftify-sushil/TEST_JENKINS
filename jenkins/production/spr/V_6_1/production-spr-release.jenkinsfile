@@ -38,6 +38,7 @@ def springcommonRepos = [
     'global_meta',
     'jersey_object_library'
 ]
+// def GitUrl =''
 pipeline {
      /** Defining workspace for the node **/
     agent {
@@ -309,18 +310,19 @@ pipeline {
 
         stage('Common Repos Checkout') {
             parallel {
-                stage('Spring common Libraries') {
+                    stage('Spring common Libraries') {
                     when { expression { params.MARINER ||  params.EXPLORER } }
-
                     steps {
                         script {
-                            springcommonRepos.each { repo1 ->
-                                dir(repo1) {
-                                    checkout([
-                                        $class: 'GitSCM',
-                                        branches: [[name: "${gitbranch}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo1}.git"]]
-                                    ])
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springcommonRepos.each { repo1 ->
+                                    dir(repo1) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${params.gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo1}.git"]]]
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -331,14 +333,16 @@ pipeline {
 
                     steps {
                         script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
                             springplatformRepos.each { repo ->
                                 dir(repo) {
                                     checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranch}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
                                 }
+                            }
                             }
                         }
                     }
@@ -598,136 +602,136 @@ pipeline {
 /**
  STAGE 7. Deploying Patch on servers(MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin
 */
-        stage('Deploy Patch') {
-            parallel {
-                    stage('MARINER 1') {
-                    when { expression { params.MARINER } }
-                        steps {
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                           transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                           execCommand: '', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                           patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
-                           sourceFiles:"webapps-${sprNumber}.zip")], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                           verbose: true)])
+        // stage('Deploy Patch') {
+        //     parallel {
+        //             stage('MARINER 1') {
+        //             when { expression { params.MARINER } }
+        //                 steps {
+        //                 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                    transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                    execCommand: '', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+        //                    patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+        //                    sourceFiles:"webapps-${sprNumber}.zip")], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+        //                    verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """cd /home/devops
-                            sudo cd /var/lib/tomcat9/webapps
-                            sudo rm -rf  ROOT/WEB-INF/lib/*
-                            sudo rm -rf  es/WEB-INF/lib/*
-                            sudo rm -rf  eg_portal_services/WEB-INF/lib/*
-                            sudo rm -rf  egCustomerServices/WEB-INF/lib/*
-                            cd /home/devops
-                            sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
-                            cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh
-                            sleep 5
-                            sudo ./startup.sh
-                            sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                            patternSeparator: '[, ]+',
-                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false, verbose: true)])
-                        }
-                    }
-                stage('EXPLORER 1') {
-                        when { expression { params.EXPLORER } }
-                        steps {
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '',
-                            sourceFiles: "delivery_webapps-${sprNumber}.zip")],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: """cd /home/devops
+        //                     sudo cd /var/lib/tomcat9/webapps
+        //                     sudo rm -rf  ROOT/WEB-INF/lib/*
+        //                     sudo rm -rf  es/WEB-INF/lib/*
+        //                     sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+        //                     sudo rm -rf  egCustomerServices/WEB-INF/lib/*
+        //                     cd /home/devops
+        //                     sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
+        //                     cd /opt/tomcat9/bin
+        //                     sudo ./shutdown.sh
+        //                     sleep 5
+        //                     sudo ./startup.sh
+        //                     sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
+        //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+        //                     patternSeparator: '[, ]+',
+        //                     remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+        //                     useWorkspaceInPromotion: false, verbose: true)])
+        //                 }
+        //             }
+        //         stage('EXPLORER 1') {
+        //                 when { expression { params.EXPLORER } }
+        //                 steps {
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                     transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
+        //                     noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+        //                     remoteDirectorySDF: false, removePrefix: '',
+        //                     sourceFiles: "delivery_webapps-${sprNumber}.zip")],
+        //                     usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """cd /home/devops
-                            sudo cd /var/lib/tomcat9/webapps
-                            sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_scheduler/lib/*
-                            cd /home/devops
-                            sudo unzip -o delivery_webapps-${sprNumber}.zip -d /var/lib/tomcat9/webapps/
-                            sudo rm -rf /home/devops/delivery_webapps-${sprNumber}.zip""",
-                            execTimeout: 0, flatten: false,
-                            makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
-                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                     transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: """cd /home/devops
+        //                     sudo cd /var/lib/tomcat9/webapps
+        //                     sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
+        //                     sudo rm -rf  eg_scheduler/lib/*
+        //                     cd /home/devops
+        //                     sudo unzip -o delivery_webapps-${sprNumber}.zip -d /var/lib/tomcat9/webapps/
+        //                     sudo rm -rf /home/devops/delivery_webapps-${sprNumber}.zip""",
+        //                     execTimeout: 0, flatten: false,
+        //                     makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
+        //                     remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+        //                     usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '''cd /var/www/html/shfiles
-                            sudo ./newkillSchedularProcess.sh
-                            cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh  2>/dev/null
-                            sudo sleep 5
-                            sudo ./startup.sh
-                            sudo sleep 10
-                            cd /var/www/html/shfiles
-                            sudo ./schedularProcess.sh''',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-                            removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false,
-                            verbose: true)])
-                        }
-                }
-                stage('APOLLO 1') {
-                        when { expression { params.APOLLO } }
-                            steps {
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '',
-                            sourceFiles: "html-${sprNumber}.zip")], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false, verbose: true)])
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                     transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: '''cd /var/www/html/shfiles
+        //                     sudo ./newkillSchedularProcess.sh
+        //                     cd /opt/tomcat9/bin
+        //                     sudo ./shutdown.sh  2>/dev/null
+        //                     sudo sleep 5
+        //                     sudo ./startup.sh
+        //                     sudo sleep 10
+        //                     cd /var/www/html/shfiles
+        //                     sudo ./schedularProcess.sh''',
+        //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+        //                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+        //                     removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+        //                     useWorkspaceInPromotion: false,
+        //                     verbose: true)])
+        //                 }
+        //         }
+        //         stage('APOLLO 1') {
+        //                 when { expression { params.APOLLO } }
+        //                     steps {
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                     transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
+        //                     noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+        //                     remoteDirectorySDF: false, removePrefix: '',
+        //                     sourceFiles: "html-${sprNumber}.zip")], usePromotionTimestamp: false,
+        //                     useWorkspaceInPromotion: false, verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """sudo cd /home/devops
-                            sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
-                            sudo unzip -o html-${sprNumber}.zip -d /var/www/
-                            sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                            sudo rm -rf /home/devops/html-${sprNumber}.zip""",
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-                            removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false, verbose: true)])
-                            }
-                }
-                stage('OPS')
-                       {
-                            when { expression { params.OPS } }
-                        steps {
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                              transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                              execCommand: """
-                              # Create the deploy.sh script
-                              cat << 'EOF' > /home/devops/deploy.sh
+        //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                     transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                     execCommand: """sudo cd /home/devops
+        //                     sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
+        //                     sudo unzip -o html-${sprNumber}.zip -d /var/www/
+        //                     sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+        //                     sudo rm -rf /home/devops/html-${sprNumber}.zip""",
+        //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+        //                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+        //                     removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
+        //                     useWorkspaceInPromotion: false, verbose: true)])
+        //                     }
+        //         }
+        //         stage('OPS')
+        //                {
+        //                     when { expression { params.OPS } }
+        //                 steps {
+        //                 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+        //                       transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                       execCommand: """
+        //                       # Create the deploy.sh script
+        //                       cat << 'EOF' > /home/devops/deploy.sh
 
-                             sudo rm -rf /var/spring_project/*
-                             sudo cp /home/devops/processing_system/ops.jar /var/spring_project/ops-spr-${sprNumber}.jar
-                             sudo cd /var/spring_project
-                             sudo nohup java -jar ops-spr-${sprNumber}.jar > ops.log 2>&1 &
-                              EOF
+        //                      sudo rm -rf /var/spring_project/*
+        //                      sudo cp /home/devops/processing_system/ops.jar /var/spring_project/ops-spr-${sprNumber}.jar
+        //                      sudo cd /var/spring_project
+        //                      sudo nohup java -jar ops-spr-${sprNumber}.jar > ops.log 2>&1 &
+        //                       EOF
 
-                             # Make the script executable
-                             chmod +x /home/devops/deploy.sh
+        //                      # Make the script executable
+        //                      chmod +x /home/devops/deploy.sh
 
-                             # Run the script
-                             /home/devops/deploy.sh
-                              """,
-                             execTimeout: 0,flatten: false, makeEmptyDirs: false,noDefaultExcludes: false,
-                             patternSeparator: '[, ]+',remoteDirectory: '/home/devops/processing_system',remoteDirectorySDF: false,
-                             removePrefix: 'processing_system/target',
-                             sourceFiles: 'processing_system/target/ops.jar')],usePromotionTimestamp: false,
-                             useWorkspaceInPromotion: false,verbose: true)])
-                     }
-                       }
-            }
-        }
+        //                      # Run the script
+        //                      /home/devops/deploy.sh
+        //                       """,
+        //                      execTimeout: 0,flatten: false, makeEmptyDirs: false,noDefaultExcludes: false,
+        //                      patternSeparator: '[, ]+',remoteDirectory: '/home/devops/processing_system',remoteDirectorySDF: false,
+        //                      removePrefix: 'processing_system/target',
+        //                      sourceFiles: 'processing_system/target/ops.jar')],usePromotionTimestamp: false,
+        //                      useWorkspaceInPromotion: false,verbose: true)])
+        //              }
+        //                }
+        //     }
+        // }
 
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI

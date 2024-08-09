@@ -1,4 +1,3 @@
-
 def gitbranch = ''
 def gitbranch1 = '1.0.0'
 def buildStatus = true
@@ -9,19 +8,17 @@ def nuxtlibrariesRepos = [
     'eslint_plugin',
     'eslint',
     'fe_communicator',
-    'nuxt_famework',
     'fe_ts_utils',
 ]
-def nuxtRepos=[
+
+def nuxtRepos = [
     'js_object_library',    
     'nuxt_object_library',
     'nuxt_common_modules',
-    'nuxt_staff'
 ]
 
 pipeline {
     agent any
-    
 
     tools {
         jdk 'jdk14'
@@ -30,95 +27,55 @@ pipeline {
     }
 
     parameters {
-      
         string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
-       
         string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
     }
 
     stages {
-        /**
-         STAGE 1: Deleting Pipeline Workspace
-         */
         stage('Preparing For UAT Upload') {
             steps {
                 script {
-                   
                     gitbranch = params.GIT_BRANCH_NAME
-                   
                     sqlFilePath = params.DB_FILE_PATH
 
                     // Clean workspace
                     cleanWs()
-
-                    // Set build description with both branch names
-                   
                 }
             }
         }
 
-        /**
-         STAGE 2: Doing GIT Repos Checkout Parallely
-         */
-    
-             
-       
-                stage('Nuxt Repos Checkout') {
-                   parallel {
-                   stage('Nuxt Libraries') {
-                    steps {
-                        script {
-                            nuxtRepos.each { repo ->
-                                dir(repo) {
-                                    checkout([
-                                        $class: 'GitSCM',
-                                        branches: [[name: "${gitbranch}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
-                                    ])
+        stage('Checkout Repositories') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'GitUrl', variable: 'GitUrl')]) {
+                        parallel (
+                            "Nuxt Libraries": {
+                                nuxtlibrariesRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${gitbranch1}"]],
+                                            userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]]
+                                        )
+                                    }
+                                }
+                            },
+                            "Nuxt Repos": {
+                                nuxtRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]]
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    }
-                  }
-
-                   stage('Nuxt Repos') {
-                   
-                    steps {
-                        script {
-                            nuxtlibrariesRepos.each { repo ->
-                                dir(repo) {
-                                    checkout([
-                                        $class: 'GitSCM',
-                                        branches: [[name: "${gitbranch1}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
-                                    ])
-                                }
-                            }
-                        }
+                        )
                     }
                 }
-                 }
-                }
-
-              
-               
-               
-           
-            
-        
-/** 
-  STAGE 3.Running Maven Build on Platform (objects,platform,scheduler)
-*/          
-
-         
-/**
-   STAGE 4.Creating Patch (Running maven build,php composer and code packaging)
-*/  
- 	 
-        /**
-         STAGE 8: Running DB Script If Any
-         */
-     
+            }
+        }
     }
 
     post {
