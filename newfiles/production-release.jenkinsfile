@@ -58,7 +58,7 @@ pipeline {
                         error('GIT Branch Not  Defined�')
                          }else {
                         gitbranch = params.GIT_BRANCH
-						
+                        
                         if (params.OPS) {
                                 servers = 'TEST_SERVER'
                         }
@@ -265,21 +265,21 @@ STAGE 4.Running Maven Build on Services,Scheduler , doing composer install on yi
 /**
    STAGE 5.Creating Patch (Running maven build,php composer and code packaging)
 */  
- 	 stage('Creating Java And PHP Patch')
-  	 {
+      stage('Creating Java And PHP Patch')
+       {
         parallel{
-       	 stage('Create PHP Patch'){
+            stage('Create PHP Patch'){
                 when { expression { params.APOLLO} }
                 steps {
                   sh '''
-					cd html
-					cd todo
-					composer install
-					cd ..
-					cd ..
-					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-					zip -r html.zip html/*
-					'''
+                    cd html
+                    cd todo
+                    composer install
+                    cd ..
+                    cd ..
+                    sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                    zip -r html.zip html/*
+                    '''
                 }
            }
          }

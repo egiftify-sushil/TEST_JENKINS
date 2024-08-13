@@ -68,7 +68,7 @@ pipeline {
         //  booleanParam(name: "APOLLOANGULAR", defaultValue: false)
         // for apolo-angular
         string(name: 'UPR_NUMBER', defaultValue: '', description: 'Provide UPR Number')
-		string(name: 'GIT_BRANCH', defaultValue: '', description: 'Provide UPR Git Branch')
+        string(name: 'GIT_BRANCH', defaultValue: '', description: 'Provide UPR Git Branch')
     }
     stages {
 /**
@@ -82,7 +82,7 @@ pipeline {
                         error('UPR NUMBER Not  Defined�')
                          }else {
                         uprNumber = params.UPR_NUMBER
-						gitBranch = params.GIT_BRANCH
+                        gitBranch = params.GIT_BRANCH
 
                         if (params.OPS) {
                                 servers = 'TEST_SERVER'
