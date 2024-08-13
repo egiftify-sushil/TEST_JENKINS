@@ -231,54 +231,18 @@ pipeline {
                         }
                     }
          
-// stage('Install Node.js and Yarn') {
-//     steps {
-//         script {
-//             sh '''
-//             source ~/.nvm/nvm.sh
-//             nvm use 18.17.1
-//             node -v
-//             npm -v
-//             yarn -v
-//             '''
-//         }
-//     }
-// }
 
-
-        //                stage('Installing and Configuring Yarn') {
-        //     steps {
-        //         script {
-        //             withEnv([
-        //                 "PATH+NODE=${tool name: 'nodejs18'}/bin",
-        //                 "PATH+YARN=/home/ec2-user/.nvm/versions/node/v18.17.1/bin"
-        //             ]) {
-        //                 sh '''
-        //                 # Set Yarn to use version Berry (v2+) and upgrade to 3.6.0
-        //                 yarn set version berry
-        //                 yarn set version 3.6.0
-
-        //                 # Confirm Yarn version
-        //                 yarn --version
-        //                 '''
-        //             }
-        //         }
-        //     }
-        // }
 
         stage('Eslint Plugin Build') {
             steps {
                 script {
-                    withEnv([
-                        "PATH+NODE=${tool name: 'nodejs18'}/bin",
-                        "PATH+YARN=/home/ec2-user/.nvm/versions/node/v18.16.0/bin"
-                    ]) {
+                   
                         dir('eslint_plugin') {
                             sh 'yarn set version berry'
                             sh 'yarn set version 3.6.0'
                             sh 'yarn install'
                         }
-                    }
+                    
                 }
             }
         }
@@ -286,16 +250,13 @@ pipeline {
         stage('Eslint Build') {
             steps {
                 script {
-                    withEnv([
-                        "PATH+NODE=${tool name: 'nodejs18'}/bin",
-                        "PATH+YARN=/home/ec2-user/.nvm/versions/node/v18.16.0/bin"
-                    ]) {
+                   
                         dir('eslint') {
                            
                             sh 'yarn set version berry'
                             sh 'yarn set version 3.6.0'
                             sh 'yarn install'
-                        }
+                        
                     }
                 }
             }
@@ -304,15 +265,12 @@ pipeline {
         stage('Fe Communicator Build') {
             steps {
                 script {
-                    withEnv([
-                        "PATH+NODE=${tool name: 'nodejs18'}/bin",
-                        "PATH+YARN=/home/ec2-user/.nvm/versions/node/v18.16.0/bin"
-                    ]) {
+                    
                         dir('fe_communicator') {
                              sh 'yarn cache clean'
                             sh 'yarn install'
                         }
-                    }
+                    
                 }
             }
         }

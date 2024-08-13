@@ -17,7 +17,7 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
-def gitbranchname = ''
+def gitbranch = ''
 def cvsbranchname = ''
 def buildStatus = true
 def attachment = false
@@ -38,9 +38,9 @@ def springcommonRepos = [
 
 pipeline {
     agent any
-    tools {
-        jdk 'jdk14'
+   tools {
         jdk 'jdk17'
+        jdk 'jdk14'
         nodejs 'nodejs14'
     }
 
@@ -66,7 +66,7 @@ pipeline {
                         error('GIT Branch Name is required for JERSEY_RELEASE or OPS_RELEASE')
                     }
 
-                    gitbranchname = params.GIT_BRANCH_NAME
+                    gitbranch = params.GIT_BRANCH_NAME
                     cvsbranchname = params.CVS_BRANCH_NAME
                     sqlFilePath = params.DB_FILE_PATH
 
@@ -74,7 +74,7 @@ pipeline {
                     cleanWs()
 
                     // Set build description with both branch names
-                    currentBuild.description = "GIT Branch: ${gitbranchname}, CVS Branch: ${cvsbranchname}"
+                    currentBuild.description = "GIT Branch: ${gitbranch}, CVS Branch: ${cvsbranchname}"
                 }
             }
         }
@@ -151,15 +151,17 @@ pipeline {
                     when { expression { params.OPS_RELEASE } }
 
                     steps {
-                        script {
+                          script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
                             springplatformRepos.each { repo ->
                                 dir(repo) {
                                     checkout([
                                         $class: 'GitSCM',
-                                        branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo}.git"]]
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
                                 }
+                            }
                             }
                         }
                     }
@@ -169,14 +171,16 @@ pipeline {
                     when { expression { params.JERSEY_RELEASE } }
 
                     steps {
-                        script {
-                            springcommonRepos.each { repo1 ->
-                                dir(repo1) {
-                                    checkout([
-                                        $class: 'GitSCM',
-                                        branches: [[name: "${gitbranchname}"]],
-                                        userRemoteConfigs: [[url: "${GitUrl}/${repo1}.git"]]
-                                    ])
+                            script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springcommonRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -188,16 +192,16 @@ pipeline {
         /**
          STAGE 4: Running Maven Build and NPM on Services
          */
-        stage('Build') {
-            parallel {
+       
                 stage('Building Common Jars') {
                     when { expression { params.JERSEY_RELEASE } }
 
                     steps {
                         script {
+                             def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
                             def mavenCommands = [
-                            'mvn clean',
-                            'mvn install -U'
+                            'mvn clean install'
+                          
                              ]
 
                             springcommonRepos.each { repo1 ->
@@ -205,11 +209,15 @@ pipeline {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
                                     sh '''
                                     find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                     '''
+                                    '''
 
                                     // Execute Maven commands
-                                    mavenCommands.each { command ->
-                                        sh command
+                                     mavenCommands.each { command ->
+                                        sh """
+                                        export JAVA_HOME=${javaHome}
+                                        export PATH=\$JAVA_HOME/bin:\$PATH
+                                        ${command}
+                                     """
                                     }
                                 }
                             }
@@ -222,21 +230,27 @@ pipeline {
 
                     steps {
                         script {
+                            def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
+                     
                             def mavenCommands = [
-                            'mvn clean',
-                            'mvn install -U'
+                            'mvn clean install',
+                           
                              ]
 
                             springplatformRepos.each { repo ->
                                 dir(repo) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
                                     sh '''
-                                find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                   '''
+                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                    '''
 
                                     // Execute Maven commands
-                                    mavenCommands.each { command ->
-                                        sh command
+                                   mavenCommands.each { command ->
+                                    sh """
+                                        export JAVA_HOME=${javaHome}
+                                        export PATH=\$JAVA_HOME/bin:\$PATH
+                                        ${command}
+                                    """
                                     }
                                 }
                             }
@@ -251,13 +265,13 @@ pipeline {
                     steps {
                         script {
                             def buildSteps = [
-                      ['name': 'eg_objects', 'path': 'eg_objects'],
-                      ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
-                      ['name': 'eg_platform', 'path': 'eg_platform'],
-                      ['name': 'scheduler_base', 'path': 'scheduler_base']
-                      ]
+                            ['name': 'eg_objects', 'path': 'eg_objects'],
+                            ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                            ['name': 'eg_platform', 'path': 'eg_platform'],
+                            ['name': 'scheduler_base', 'path': 'scheduler_base']
+                             ]
 
-                            buildSteps.each { step ->
+                             buildSteps.each { step ->
                                 dir(step.path) {
                                     sh 'mvn clean'
                                     sh 'mvn install -U'
@@ -327,9 +341,7 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
+          
         /**
          STAGE 5: Creating Patch (Code Packaging)
          */
