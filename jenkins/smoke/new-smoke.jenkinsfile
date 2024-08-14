@@ -2,7 +2,7 @@
 Point to rember : use JDK 17 For building the java and spring projects for version V_6_1
 GITURL is present in environments
 STAGE 1:-  Deleting pipeline workspace
-STAGE 2:- Doing J  Checkout (JAVA , PHP)
+STAGE 2:- Doing Java  Checkout (JAVA , PHP)
 STAGE 3:-  Doing Java Repos Checkout From Git (SPRING)
 STAGE 4.Running Maven Build on Services cloned from git
 STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
@@ -492,10 +492,12 @@ pipeline {
                                 transfers: [sshTransfer(cleanRemote: false, excludes: '',
                                 execCommand: '''
                                 cd /home/devops
+                                sudo rm -rf processingsystem
                                 sudo unzip processingsystem.zip -d /home/devops
                                 cd processingsystem
                                 sudo ./run_ops.sh
-                                sudo sleep 10                                                     
+                                cd /home/devops
+                                sudo rm -rf processingsystem.zip                                        
                                 ''',
                                 execTimeout: 0,
                                 flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
