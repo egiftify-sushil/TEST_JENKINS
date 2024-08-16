@@ -414,23 +414,23 @@ pipeline {
                         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                         verbose: true)])
 
-                        // sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                        //  transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                        //  execCommand: '''
-                        //  cd /var/www/html/shfiles
-                        //  sudo ./killSchedularProcess.sh
-                        //  sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
-                        //  cd /opt/tomcat9/bin
-                        //  sudo ./startup.sh
-                        //  sudo sleep 10
-                        //  cd /var/www/html/shfiles
-                        //  sudo ./schedularProcess.sh
-                        //  ''',
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                         transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                         execCommand: '''
+                         cd /var/www/html/shfiles
+                         sudo ./killSchedularProcess.sh
+                         sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
+                         cd /opt/tomcat9/bin
+                         sudo ./startup.sh
+                         sudo sleep 10
+                         cd /var/www/html/shfiles
+                         sudo ./schedularProcess.sh
+                         ''',
 
-                        //  execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                        //  patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-                        //  removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                        //  verbose: true)])
+                         execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+                         removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                         verbose: true)])
                         }
                     }
 
@@ -463,7 +463,7 @@ pipeline {
                             }
                 }
 
-                stage('OPS') {
+               stage('OPS') {
                 when { expression { params.OPS_RELEASE } }
                 steps {
                     sshPublisher(
@@ -471,23 +471,12 @@ pipeline {
                             sshPublisherDesc(
                                 configName: 'TEST_SERVER',
                                 transfers: [
+                                    // Step 1: Remove the existing ops.jar file
                                     sshTransfer(
                                         cleanRemote: false,
                                         excludes: '',
                                         execCommand: '''
-                                            # Step 1: Remove the existing ops.jar file
                                             sudo rm -rf /home/devops/ops.jar
-                                            
-                                            # Step 2: Copy the new ops.jar file
-                                            cp processing_system/target/ops.jar /home/devops/ops.jar
-
-                                            # Step 3: Create the shell script to execute ops.jar
-                                            echo '#!/bin/bash' > /home/devops/run_ops.sh
-                                            echo 'java -jar /home/devops/ops.jar' >> /home/devops/run_ops.sh
-                                            sudo chmod +x /home/devops/run_ops.sh
-
-                                            # Step 4: Execute the shell script
-                                            sudo /home/devops/run_ops.sh
                                         ''',
                                         execTimeout: 0,
                                         flatten: false,
@@ -498,7 +487,27 @@ pipeline {
                                         remoteDirectorySDF: false,
                                         removePrefix: 'processing_system/target',
                                         sourceFiles: 'processing_system/target/ops.jar'
-                                    )
+                                    ),
+                                    // Step 2: Create the shell script to execute ops.jar
+                                    sshTransfer(
+                                        cleanRemote: false,
+                                        excludes: '',
+                                        execCommand: '''
+                                            echo '#!/bin/bash' > /home/devops/run_ops.sh
+                                            echo 'java -jar /home/devops/ops.jar' >> /home/devops/run_ops.sh
+                                            sudo chmod +x /home/devops/run_ops.sh
+                                             sudo /home/devops/run_ops.sh
+                                        ''',
+                                        execTimeout: 0,
+                                        flatten: false,
+                                        makeEmptyDirs: false,
+                                        noDefaultExcludes: false,
+                                        patternSeparator: '[, ]+',
+                                        remoteDirectory: '',
+                                        remoteDirectorySDF: false,
+                                        sourceFiles: ''
+                                    ),
+                                                                     
                                 ],
                                 usePromotionTimestamp: false,
                                 useWorkspaceInPromotion: false,
@@ -509,6 +518,7 @@ pipeline {
                 }
             }
 
+        }
 
         }
 /**
