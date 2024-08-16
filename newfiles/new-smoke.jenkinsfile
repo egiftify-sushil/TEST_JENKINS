@@ -54,10 +54,22 @@ pipeline {
         stage('Preparing For UAT Upload') {
             steps {
                 script {
-                   
-                    gitbranchname = params.GIT_BRANCH_NAME
-                   
-                    sqlFilePath = params.DB_FILE_PATH
+                   // sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                        //  transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                        //  execCommand: '''
+                        //  cd /var/www/html/shfiles
+                        //  sudo ./killSchedularProcess.sh
+                        //  sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
+                        //  cd /opt/tomcat9/bin
+                        //  sudo ./startup.sh
+                        //  sudo sleep 10
+                        //  cd /var/www/html/shfiles
+                        //  sudo ./schedularProcess.sh
+                        //  ''',
+
+                        //  execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+                        //  patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
+                        //  removePrefix: '', sourceFiles: TH
 
                     // Clean workspace
                     cleanWs()
