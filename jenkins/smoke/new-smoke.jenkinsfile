@@ -384,27 +384,27 @@ pipeline {
                           sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                           verbose: true)])
 
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                        execCommand: '''
-                        sudo cd /var/lib/tomcat9/webapps
-                        sudo rm -rf  eg_lifeline_services/WEB-INF/lib/
-                        sudo rm -rf  eg_merchant_services/WEB-INF/lib/
-                        sudo rm -rf  eg_portal_services/WEB-INF/lib/
-                        sudo rm -rf  eg_customer_services/WEB-INF/lib/
-                        sudo rm -rf  eg_scheduler_services/WEB-INF/lib/
-                        sudo rm -rf  eg_scheduler/lib/
-                        cd /home/devops
-                        sudo unzip -o webapps.zip -d /var/lib/tomcat9/
-                        sudo rm -rf /home/devops/webapps.zip
-                         cd /var/www/html/shfiles
-                         sudo ./killSchedularProcess.sh
-                         sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
-                         cd /opt/tomcat9/bin
-                         sudo ./startup.sh
-                         sudo sleep 10
-                         cd /var/www/html/shfiles
-                         sudo ./schedularProcess.sh
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            sudo cd /var/lib/tomcat9/webapps
+                            sudo rm -rf  eg_lifeline_services/WEB-INF/lib/
+                            sudo rm -rf  eg_merchant_services/WEB-INF/lib/
+                            sudo rm -rf  eg_portal_services/WEB-INF/lib/
+                            sudo rm -rf  eg_customer_services/WEB-INF/lib/
+                            sudo rm -rf  eg_scheduler_services/WEB-INF/lib/
+                            sudo rm -rf  eg_scheduler/lib/
+                            cd /home/devops
+                            sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+                            sudo rm -rf /home/devops/webapps.zip
+                            cd /var/www/html/shfiles
+                            sudo ./killSchedularProcess.sh
+                            sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
+                            cd /opt/tomcat9/bin
+                            sudo ./startup.sh
+                            sudo sleep 10
+                            cd /var/www/html/shfiles
+                            sudo ./schedularProcess.sh
                         
                         
                         ''',
@@ -417,15 +417,15 @@ pipeline {
                         sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                          transfers: [sshTransfer(cleanRemote: false, excludes: '',
                          execCommand: '''
-                         cd /var/www/html/shfiles
-                         sudo ./killSchedularProcess.sh
-                         sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
-                         cd /opt/tomcat9/bin
-                         sudo ./startup.sh
-                         sudo sleep 10
-                         cd /var/www/html/shfiles
-                         sudo ./schedularProcess.sh
-                         ''',
+                            cd /var/www/html/shfiles
+                            sudo ./killSchedularProcess.sh
+                            sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
+                            cd /opt/tomcat9/bin
+                            sudo ./startup.sh
+                            sudo sleep 10
+                            cd /var/www/html/shfiles
+                            sudo ./schedularProcess.sh
+                            ''',
 
                          execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                          patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
@@ -449,12 +449,12 @@ pipeline {
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /home/devops
-                            cd /var/www/html
-                            sudo rm -rf  eg_yii2_framework_v2
-                            cd /home/devops
-                            sudo unzip -o html.zip -d /var/www/
-                            sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                            sudo rm -rf /home/devops/html.zip''',
+                                cd /var/www/html
+                                sudo rm -rf  eg_yii2_framework_v2
+                                cd /home/devops
+                                sudo unzip -o html.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+                                sudo rm -rf /home/devops/html.zip''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+',
                             remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
@@ -463,7 +463,7 @@ pipeline {
                             }
                 }
 
-               stage('OPS') {
+                stage('OPS') {
                 when { expression { params.OPS_RELEASE } }
                 steps {
                     sshPublisher(
@@ -476,8 +476,29 @@ pipeline {
                                         cleanRemote: false,
                                         excludes: '',
                                         execCommand: '''
-                                            sudo rm -rf /home/devops/ops.jar
+                                            # Check existing files
+                                            sudo ls -l /home/devops/
+                                            
+                                            # Remove all files and directories
+                                            sudo rm -rf /home/devops/processing_system
+                                            sudo rm /home/devops/run_ops.sh
+
                                         ''',
+                                        execTimeout: 0,
+                                        flatten: false,
+                                        makeEmptyDirs: false,
+                                        noDefaultExcludes: false,
+                                        patternSeparator: '[, ]+',
+                                        remoteDirectory: '',
+                                        remoteDirectorySDF: false,
+                                        removePrefix: '',
+                                        sourceFiles: ''
+                                    ),
+                                    // Step 2: Transfer ops.jar
+                                    sshTransfer(
+                                        cleanRemote: false,
+                                        excludes: '',
+                                        execCommand: '',
                                         execTimeout: 0,
                                         flatten: false,
                                         makeEmptyDirs: false,
@@ -488,15 +509,15 @@ pipeline {
                                         removePrefix: 'processing_system/target',
                                         sourceFiles: 'processing_system/target/ops.jar'
                                     ),
-                                    // Step 2: Create the shell script to execute ops.jar
+                                    // Step 3: Create and execute the shell script
                                     sshTransfer(
                                         cleanRemote: false,
                                         excludes: '',
                                         execCommand: '''
                                             echo '#!/bin/bash' > /home/devops/run_ops.sh
-                                            echo 'java -jar /home/devops/ops.jar' >> /home/devops/run_ops.sh
+                                            echo 'java -jar /home/devops/processing_system/ops.jar' >> /home/devops/run_ops.sh
                                             sudo chmod +x /home/devops/run_ops.sh
-                                             sudo /home/devops/run_ops.sh
+                                            sudo /home/devops/run_ops.sh
                                         ''',
                                         execTimeout: 0,
                                         flatten: false,
@@ -506,8 +527,7 @@ pipeline {
                                         remoteDirectory: '',
                                         remoteDirectorySDF: false,
                                         sourceFiles: ''
-                                    ),
-                                                                     
+                                    )
                                 ],
                                 usePromotionTimestamp: false,
                                 useWorkspaceInPromotion: false,
@@ -517,6 +537,7 @@ pipeline {
                     )
                 }
             }
+
 
         }
 
