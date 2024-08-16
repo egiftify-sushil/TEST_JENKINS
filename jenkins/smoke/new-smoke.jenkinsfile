@@ -217,21 +217,6 @@ pipeline {
                             }
                         }
 
-                        // Create a ZIP file containing ops.jar in the base directory
-                       sh '''
-                        echo '#!/bin/bash' > processing_system/target/run_ops.sh
-                        echo 'cd $(dirname $0)' >> processing_system/target/run_ops.sh
-                        echo 'nohup java -jar ops.jar &' >> processing_system/target/run_ops.sh
-                        chmod +x processing_system/target/run_ops.sh
-                        '''
-
-                        sh '''
-                        cd processing_system/target
-                        zip ../../processingsystem.zip ops.jar run_ops.sh
-                        '''
-
-                        // Check if the zip file exists
-                        sh 'ls -l '
 
 
 
@@ -479,38 +464,52 @@ pipeline {
                 }
 
                 stage('OPS') {
-                   when { expression { params.OPS_RELEASE } }
-                            steps {
-                                sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                                transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
-                                execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                                patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
-                                sourceFiles: 'processingsystem.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                                verbose: true)])
+                when { expression { params.OPS_RELEASE } }
+                steps {
+                    sshPublisher(
+                        publishers: [
+                            sshPublisherDesc(
+                                configName: 'TEST_SERVER',
+                                transfers: [
+                                    sshTransfer(
+                                        cleanRemote: false,
+                                        excludes: '',
+                                        execCommand: '''
+                                            # Step 1: Remove the existing ops.jar file
+                                            sudo rm -rf /home/devops/ops.jar
+                                            
+                                            # Step 2: Copy the new ops.jar file
+                                            cp processing_system/target/ops.jar /home/devops/ops.jar
 
-                                sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                                transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                                execCommand: '''
-                                cd /home/devops
-                                sudo rm -rf processingsystem
-                                sudo unzip processingsystem.zip -d /home/devops
-                                cd processingsystem
-                                sudo ./run_ops.sh
-                                cd /home/devops
-                                sudo rm -rf processingsystem.zip                                        
-                                ''',
-                                execTimeout: 0,
-                                flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
-                                remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                                usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                                verbose: true)])
+                                            # Step 3: Create the shell script to execute ops.jar
+                                            echo '#!/bin/bash' > /home/devops/run_ops.sh
+                                            echo 'java -jar /home/devops/ops.jar' >> /home/devops/run_ops.sh
+                                            sudo chmod +x /home/devops/run_ops.sh
 
-                              
-                        }
+                                            # Step 4: Execute the shell script
+                                            sudo /home/devops/run_ops.sh
+                                        ''',
+                                        execTimeout: 0,
+                                        flatten: false,
+                                        makeEmptyDirs: false,
+                                        noDefaultExcludes: false,
+                                        patternSeparator: '[, ]+',
+                                        remoteDirectory: 'processing_system',
+                                        remoteDirectorySDF: false,
+                                        removePrefix: 'processing_system/target',
+                                        sourceFiles: 'processing_system/target/ops.jar'
+                                    )
+                                ],
+                                usePromotionTimestamp: false,
+                                useWorkspaceInPromotion: false,
+                                verbose: true
+                            )
+                        ]
+                    )
                 }
-
-
             }
+
+
         }
 /**
 STAGE 9.Syncing & Invalidating assets using aws CLI
