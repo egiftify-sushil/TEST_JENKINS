@@ -23,14 +23,15 @@ pipeline {
     agent {
         node {
              label ''
-             customWorkspace '/var/devops/NUXT_PROJECT/'
+             customWorkspace '/var/devops/NUXT'
           }
     }
+    
 
     tools {
         nodejs 'nodejs18'
     }
-
+   
     parameters {
         string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
@@ -97,19 +98,19 @@ pipeline {
 // stage 2
            
            
-
-        
-                stage('Eslint') {
+              
+                stage('Eslint Changing ') {
                     steps {
                         script {
                             // Navigate to the eslint_plugin directory
                             dir('eslint') {
                                 // Modify package.json
                             sh '''
-                                sed -i 's|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXT_PROJECT/eslint_plugin"|' package.json
+                               
+                                sed -i 's|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXTeslint_plugin"|' package.json
                             
                                 '''
-                             
+                            
 
                             }
                         }  
@@ -121,8 +122,8 @@ pipeline {
                             dir('fe_communicator') {
                                 sh '''
                                 sed -i '
-                                s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXT_PROJECT/eslint_plugin"|; 
-                                s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|
+                                s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXTeslint_plugin"|; 
+                                s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|
                                 ' package.json
                             
                                 '''
@@ -137,7 +138,7 @@ pipeline {
                         script {
                             dir('nuxt_framework') {
                              sh '''
-                                  sed -i 's|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|' package.json
+                                  sed -i 's|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|' package.json
                             
                                 '''
                             
@@ -151,8 +152,8 @@ pipeline {
                             dir('fe_ts_utils') {
                                 sh '''
                                 sed -i '
-                                s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXT_PROJECT/eslint_plugin"|; 
-                                s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|
+                                s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXTeslint_plugin"|; 
+                                s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|
                                 ' package.json
                             
                                 '''
@@ -167,9 +168,9 @@ pipeline {
                         dir('js_object_library') {
                             sh '''
                             sed -i '
-                            s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXT_PROJECT/eslint_plugin"|; 
-                            s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|; 
-                            s|"@egiftify/fe_ts_utils": "portal:<repository_path>"|"@egiftify/fe_ts_utils": "portal:/var/devops/NUXT_PROJECT/fe_ts_utils"|
+                            s|"@egiftify/eslint-plugin-customlint": "portal:<repository_path>"|"@egiftify/eslint-plugin-customlint": "portal:/var/devops/NUXTeslint_plugin"|; 
+                            s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|; 
+                            s|"@egiftify/fe_ts_utils": "portal:<repository_path>"|"@egiftify/fe_ts_utils": "portal:/var/devops/NUXTfe_ts_utils"|
                             ' package.json
                             '''
                            
@@ -185,8 +186,8 @@ pipeline {
                                     sh '''
                                     sed -i '
                                     
-                                    s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|; 
-                                    s|"@egiftify/js_object_library": "portal:<repository_path>"|"@egiftify/js_object_library": "portal:/var/devops/NUXT_PROJECT/js_object_library"|
+                                    s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|; 
+                                    s|"@egiftify/js_object_library": "portal:<repository_path>"|"@egiftify/js_object_library": "portal:/var/devops/NUXTjs_object_library"|
                                     ' package.json
                                     '''
                                   
@@ -202,10 +203,10 @@ pipeline {
                         dir('nuxt_common_modules') {
                             sh '''
                             sed -i '
-                            s|"@egiftify/fe_communicator": "portal:<repository_path>"|"@egiftify/fe_communicator": "portal:/var/devops/NUXT_PROJECT/fe_communicator"|; 
-                            s|"@egiftify/fe_resources": "portal:<repository_path>"|"@egiftify/fe_resources": "portal:/var/devops/NUXT_PROJECT/fe_resources"|; 
-                            s|"@egiftify/nuxt_framework": "portal:<repository_path>"|"@egiftify/nuxt_framework": "portal:/var/devops/NUXT_PROJECT/nuxt_framework"|; 
-                            s|"@egiftify/nuxt_object_library": "portal:<repository_path>"|"@egiftify/nuxt_object_library": "portal:/var/devops/NUXT_PROJECT/nuxt_object_library"|
+                            s|"@egiftify/fe_communicator": "portal:<repository_path>"|"@egiftify/fe_communicator": "portal:/var/devops/NUXTfe_communicator"|; 
+                            s|"@egiftify/fe_resources": "portal:<repository_path>"|"@egiftify/fe_resources": "portal:/var/devops/NUXTfe_resources"|; 
+                            s|"@egiftify/nuxt_framework": "portal:<repository_path>"|"@egiftify/nuxt_framework": "portal:/var/devops/NUXTnuxt_framework"|; 
+                            s|"@egiftify/nuxt_object_library": "portal:<repository_path>"|"@egiftify/nuxt_object_library": "portal:/var/devops/NUXTnuxt_object_library"|
                             ' package.json
                             '''
                             
@@ -221,8 +222,8 @@ pipeline {
                                     sh '''
                                     sed -i '
                                     
-                                    s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXT_PROJECT/eslint"|; 
-                                    s|"@egiftify/nuxt_common_modules": "portal:<repository_path>"|"@egiftify/nuxt_common_modules": "portal:/var/devops/NUXT_PROJECT/nuxt_common_modules"|
+                                    s|"@egiftify/eslint": "portal:<repository_path>"|"@egiftify/eslint": "portal:/var/devops/NUXTeslint"|; 
+                                    s|"@egiftify/nuxt_common_modules": "portal:<repository_path>"|"@egiftify/nuxt_common_modules": "portal:/var/devops/NUXTnuxt_common_modules"|
                                     ' package.json
                                     '''
                                  
@@ -230,50 +231,54 @@ pipeline {
                             }  
                         }
                     }
-         
-
-
-        stage('Eslint Plugin Build') {
-            steps {
-                script {
-                   
-                        dir('eslint_plugin') {
-                            sh 'yarn set version berry'
-                            sh 'yarn set version 3.6.0'
-                            sh 'yarn install'
+                     stage('Verify Yarn Version') {
+                        steps {
+                            sh 'yarn --version' // This should output 3.6.0
                         }
-                    
-                }
-            }
-        }
-
-        stage('Eslint Build') {
-            steps {
-                script {
-                   
-                        dir('eslint') {
-                           
-                            sh 'yarn set version berry'
-                            sh 'yarn set version 3.6.0'
-                            sh 'yarn install'
-                        
                     }
-                }
-            }
-        }
+                            
+                    stage('Eslint Plugin Build') {
+                                steps {
+                                    script {
+                                       
+                                        
+                                          dir('eslint_plugin'){
+                                              sh 'yarn install'
+                                             
+                                          }
+                                       
+                                    }
+                                }
+                            }
+                     stage('Eslint  Build') {
+                                steps {
+                                    script {
+                                      dir('eslint'){
+                                          sh 'yarn --version'
+                                              sh 'yarn install '
+                                             
+                                          }
+                                            
+                                    }
+                                }
+                            }
 
-        stage('Fe Communicator Build') {
-            steps {
-                script {
-                    
-                        dir('fe_communicator') {
-                             sh 'yarn cache clean'
-                            sh 'yarn install'
-                        }
-                    
-                }
-            }
-        }
+        
+
+       
+        // stage('Eslint Building') {
+        //             steps {
+        //                 script {
+                            
+        //                     dir('eslint') {
+                       
+        //                         sh 'yarn install'
+        //                     }
+        //                 }  
+        //             }
+        // }
+
+     
 
          
 
