@@ -326,6 +326,39 @@ pipeline {
                         }
                     }
                    }
+                    stage('Build Angular Services') {
+                        when {
+                            expression { params.APOLLOANGULAR }
+                        }
+                        steps {
+                            script {
+                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                    sh '''
+                                    cd angular/eg_customer_ang_v1
+
+                                    # Install project dependencies                                   
+                                        npm install
+
+                                    # Build the project
+                                        ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                        ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                    # Check if html directory exists and move the folders accordingly
+                                        if [ -d "../../html" ]; then
+                                        cp -r dist/customer ../../html/
+                                        cp -r dist/wallet ../../html/
+                                        else
+                                        mkdir -p ../../html
+                                        cp -r dist/customer ../../html/
+                                        cp -r dist/wallet ../../html/
+                                        fi
+
+                                    '''
+                                }
+                            }
+                        }
+                    } 
+
 		            stage('Build Services') {
 			               parallel {
                                     stage('Building Platform Repos') {
@@ -415,39 +448,7 @@ pipeline {
 											rm -rf eg_scheduler_services
 											'''
 				                     }
-				                   }
-                                   stage('Build Angular Services') {
-                                        when {
-                                            expression { params.APOLLOANGULAR }
-                                        }
-                                        steps {
-                                            script {
-                                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                                    sh '''
-                                                    cd angular/eg_customer_ang_v1
-
-                                                    # Install project dependencies                                   
-                                                        npm install
-
-                                                    # Build the project
-                                                        ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                                        ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                                    # Check if html directory exists and move the folders accordingly
-                                                        if [ -d "../../html" ]; then
-                                                        cp -r dist/customer ../../html/
-                                                        cp -r dist/wallet ../../html/
-                                                        else
-                                                        mkdir -p ../../html
-                                                        cp -r dist/customer ../../html/
-                                                        cp -r dist/wallet ../../html/
-                                                        fi
-
-                                                    '''
-                                                }
-                                            }
-                                        }
-                                    }                                  
+				                   }                                                                    
 			                   }
 		                   }
 		              }  
