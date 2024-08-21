@@ -161,7 +161,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             def mavenCommands = [
                             'mvn clean install'
 
@@ -192,7 +192,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             def mavenCommands = [
                                 'mvn clean install'
                             ]
