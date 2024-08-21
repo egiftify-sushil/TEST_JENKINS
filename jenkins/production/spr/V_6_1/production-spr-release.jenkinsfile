@@ -704,7 +704,7 @@ pipeline {
                             sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
                             sudo unzip -o html-${sprNumber}.zip -d /var/www/
                             sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                            sudo rm -rf /home/devops/html-${sprNumber}.zip""",
+                            """,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
@@ -727,7 +727,7 @@ pipeline {
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: """
-                            sudo cd /home/devops
+                            
                             """,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
