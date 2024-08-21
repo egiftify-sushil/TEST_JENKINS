@@ -755,7 +755,7 @@ pipeline {
                             sshPublisher(
                                 publishers: [
                                     sshPublisherDesc(
-                                        configName: 'OPS',
+                                        configName: 'TEST_SERVER',
                                         transfers: [
                                             sshTransfer(
                                                 cleanRemote: false,
