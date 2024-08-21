@@ -287,7 +287,7 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
-                                    withEnv(["JAVA_HOME=${tool name: 'java17'}", "PATH+JAVA=${tool name: 'java17'}/bin"]) {
+                                    withEnv(["JAVA_HOME=${tool name: 'java17'}", "PATH+JAVA=${tool name: 'java17'}"]) {
                                         mavenCommands.each { command ->
                                         sh """
                                         ${command}
@@ -334,7 +334,7 @@ pipeline {
                         }
                         steps {
                             script {
-                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}"]) {
                                     sh '''
                                     cd angular/eg_customer_ang_v1
 
@@ -380,7 +380,7 @@ pipeline {
                                                         '''
 
                                                         // Execute Maven commands
-                                                         withEnv(["JAVA_HOME=${tool name: 'java17'}", "PATH+JAVA=${tool name: 'java17'}/bin"]) {
+                                                         withEnv(["JAVA_HOME=${tool name: 'java17'}", "PATH+JAVA=${tool name: 'java17'}"]) {
                                                             mavenCommands.each { command ->
                                                                 sh """
                                                                 ${command}
@@ -542,7 +542,7 @@ pipeline {
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
-                         withEnv(["JAVA_HOME=${tool name: 'java14'}", "PATH+JAVA=${tool name: 'java14'}/bin"]) {
+                         withEnv(["JAVA_HOME=${tool name: 'java14'}", "PATH+JAVA=${tool name: 'java14'}"]) {
                           sh '''
                             mkdir webapps
                             mkdir webapps/ROOT
@@ -594,7 +594,7 @@ pipeline {
                       stage('Creating Scheduler Patch'){
                         when { expression { params.EXPLORER} }
                         steps {
-                          withEnv(["JAVA_HOME=${tool name: 'java14'}", "PATH+JAVA=${tool name: 'java14'}/bin"]) {
+                          withEnv(["JAVA_HOME=${tool name: 'java14'}", "PATH+JAVA=${tool name: 'java14'}"]) {
                           sh '''
                              if [ ! -d "deliverywebapps" ]; then
                               mkdir deliverywebapps
