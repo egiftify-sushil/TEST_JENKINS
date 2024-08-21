@@ -19,6 +19,7 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
+def branchname = ""
 def gitBranch = ''
 def uprNumber = ''
 def servers = ''
@@ -66,6 +67,7 @@ pipeline {
         // for apolo-angular
         string(name: 'UPR_NUMBER', defaultValue: '', description: 'Provide UPR Number')
         string(name: 'GIT_BRANCH', defaultValue: '', description: 'Provide UPR Git Branch')
+        string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
     }
     stages {        
 /**
@@ -80,6 +82,7 @@ pipeline {
                          }else {
                         uprNumber = params.UPR_NUMBER
                         gitBranch = params.GIT_BRANCH
+                        branchname = params.BRANCH_NAME;
 
                         if (params.OPS) {
                                 servers = 'TEST_SERVER'
@@ -265,24 +268,8 @@ pipeline {
                         }
                     }
                 }
-                stage('Angular Repos Checkout') {
-                            when { expression { params.APOLLOANGULAR } }
-                            steps {
-                                sh 'mkdir -p angular'
-                                withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
-                                {
-                                    checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
-                                    cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
-                                    repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
-                                    passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber,
-                                    useHeadIfNotFound: false], modules: [
-                                    [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
-                                }
-                            }
-                } 
-		         stage('Building Platform') {
+                stage('Building Platform') {
                     when { expression { params.MARINER || params.EXPLORER } }
-
                     steps {
                         script {
                            
@@ -324,6 +311,21 @@ pipeline {
                         }
                     }
                    }
+                   stage('Angular Repos Checkout') {
+                            when { expression { params.APOLLOANGULAR } }
+                            steps {
+                                sh 'mkdir -p angular'
+                                withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
+                                {
+                                    checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
+                                    cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                                    repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
+                                    passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname,
+                                    useHeadIfNotFound: false], modules: [
+                                    [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
+                                }
+                            }
+                    } 
                     stage('Build Angular Services') {
                         when {
                             expression { params.APOLLOANGULAR }
@@ -358,7 +360,7 @@ pipeline {
                     } 
                    
 
-		            stage('Build Services') {
+		             stage('Build Services') {
 			               parallel {                   
                                     stage('Building OPS repos') {
                                         when { expression { params.OPS } }
