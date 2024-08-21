@@ -540,91 +540,61 @@ pipeline {
           stage('Create Patch'){
                  parallel{
                     stage('Creating Services Patch') {
-                        when { expression { params.MARINER } }
-                        steps {
-                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                sh '''
-                                mkdir -p webapps/ROOT
-                                mkdir -p webapps/es
-                                mkdir -p webapps/egCustomerServices
-                                mkdir -p webapps/eg_portal_services
+                            when { expression { params.MARINER } }
+                            steps {
+                                withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
+                                    sh '''
+                                    mkdir -p webapps/ROOT
+                                    mkdir -p webapps/es
+                                    mkdir -p webapps/egCustomerServices
+                                    mkdir -p webapps/eg_portal_services
 
-                                if [ -d "eg_portal_services" ]; then
-                                    cd eg_portal_services
-                                    mvn clean
-                                    mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                    rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
-                                    rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
-                                    cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
-                                    cd ..
-                                fi
+                                    if [ -d "eg_portal_services" ]; then
+                                        cd eg_portal_services
+                                        mvn clean
+                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+                                        rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
+                                        rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
+                                        cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
+                                        cd ..
+                                    fi
 
-                                if [ -d "eg_customer_services" ]; then
-                                    cd eg_customer_services
-                                    mvn clean
-                                    mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                    rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
-                                    rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
-                                    cp -r target/eg_customer_services-partial/* ../webapps/egCustomerServices
-                                    cd ..
-                                fi
+                                    if [ -d "eg_customer_services" ]; then
+                                        cd eg_customer_services
+                                        mvn clean
+                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+                                        rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
+                                        rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
+                                        cp -r target/eg_customer_services-partial/* ../webapps/egCustomerServices
+                                        cd ..
+                                    fi
 
-                                if [ -d "eg_lifeline_services" ]; then
-                                    cd eg_lifeline_services
-                                    mvn clean
-                                    mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                    rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
-                                    rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
-                                    cp -r target/eg_lifeline_services-partial/* ../webapps/ROOT
-                                    cd ..
-                                fi
+                                    if [ -d "eg_lifeline_services" ]; then
+                                        cd eg_lifeline_services
+                                        mvn clean
+                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+                                        rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
+                                        rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
+                                        cp -r target/eg_lifeline_services-partial/* ../webapps/ROOT
+                                        cd ..
+                                    fi
 
-                                if [ -d "eg_merchant_services" ]; then
-                                    cd eg_merchant_services
-                                    mvn clean
-                                    mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                    rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
-                                    rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
-                                    cp -r target/eg_merchant_services-partial/* ../webapps/es
-                                    cd ..
-                                fi
+                                    if [ -d "eg_merchant_services" ]; then
+                                        cd eg_merchant_services
+                                        mvn clean
+                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+                                        rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
+                                        rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
+                                        cp -r target/eg_merchant_services-partial/* ../webapps/es
+                                        cd ..
+                                    fi
 
-                                zip -r webapps.zip webapps
-                                '''
-                                sh "mv webapps.zip webapps-${uprNumber}.zip"
+                                    zip -r webapps.zip webapps
+                                    '''
+                                    sh "mv webapps.zip webapps-${uprNumber}.zip"
+                                }
                             }
-                        }
-                    }
-                      stage('Creating Scheduler Patch'){
-                        when { expression { params.EXPLORER} }
-                        steps {
-                          withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                          sh '''
-                             if [ ! -d "deliverywebapps" ]; then
-                              mkdir deliverywebapps
-                            fi
-                          	mkdir deliverywebapps/eg_scheduler_services
-                          	mkdir deliverywebapps/eg_scheduler
- 							mkdir deliverywebapps/eg_scheduler/lib
-                          	if [ -d "eg_scheduler_services" ]; then
- 								cd eg_scheduler_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
-								cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
-							    cd ..
-							fi
-							cd eg_scheduler
-							mvn clean
-							mvn package
-							cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
-							cd ..
-							'''
-							 sh"""cd deliverywebapps
-							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
-                        }
-                      }
+                          }
                       stage('Creating PHP Patch'){
                         when { expression { params.APOLLO} }
                         steps {
