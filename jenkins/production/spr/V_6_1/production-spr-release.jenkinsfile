@@ -396,7 +396,7 @@ pipeline {
 
        
                 stage('Building Platform Repos') {
-                    when { expression { params.OPS_RELEASE } }
+                    when { expression { params.OPS } }
                     steps {
                         script {
                             def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
