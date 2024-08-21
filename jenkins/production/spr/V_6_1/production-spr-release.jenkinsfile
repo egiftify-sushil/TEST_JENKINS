@@ -702,10 +702,9 @@ pipeline {
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: """
                                 cd /home/devops
-                                
+                                cd /var/www/html
                                 sudo rm -rf  eg_yii2_framework_v2
                                 cd /home/devops
-                                sudo unzip -o html-${sprNumber}.zip -d 
                                 sudo unzip -o html-${sprNumber}.zip -d /var/www/
                                 sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
                                 sudo rm -rf /home/devops/html-${sprNumber}.zip
@@ -732,7 +731,15 @@ pipeline {
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: """
-                            
+                                cd /home/devops
+                                cd /var/www/html
+                                sudo rm -rf customer
+                                sudo rm -rf wallet
+                                cd /home/devops
+                                sudo unzip -o html-${sprNumber}.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/customer/
+                                sudo chmod -R 777 /var/www/html/wallet/
+                                sudo rm -rf /home/devops/html-${sprNumber}.zip
                             """,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,

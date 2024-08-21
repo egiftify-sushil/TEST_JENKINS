@@ -524,58 +524,58 @@ pipeline {
 /**
 STAGE 9.Syncing & Invalidating assets using aws CLI
 */
-        stage('CDN Sync')
-		      {
-		      when { expression { params.PHP_RELEASE} }
-                steps {
-        				sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
-        				transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-        				execCommand: '''cd /home/devops
-						if [ ! -d "common" ]; then
-						     sudo mkdir common
-						     sudo mkdir common/css
-						     sudo mkdir common/js
-						fi
-						cd /var/www/html
-						find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
-						find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
-						sudo rm -rf /home/devops/common/js/awss3.js
-						cd eg_yii2_framework_v2/egiftify_extensions
-						sudo aws s3 cp --recursive onboarding/js/ s3://eatwallet/public/js/common/
-						sudo aws s3 cp --recursive onboarding/css/ s3://eatwallet/public/css/common/
-						sudo aws s3 cp --recursive egiftify/js/ s3://eatwallet/public/js/common/
-						sudo aws s3 cp --recursive egiftify/css/ s3://eatwallet/public/css/common/
-						sudo aws s3 cp --recursive payment/js/ s3://eatwallet/public/js/common/
-						sudo aws s3 cp --recursive payment/css/ s3://eatwallet/public/css/common/
-						sudo aws s3 cp --recursive commonAssets/js/ s3://eatwallet/public/js/common/
-						sudo aws s3 cp --recursive commonAssets/css/ s3://eatwallet/public/css/common/
-						sudo aws s3 cp --recursive payment/images/ s3://eatwallet/public/images/common/
-						sudo aws s3 cp --recursive onboarding/images/ s3://eatwallet/public/images/common/
-						cd /var/www/html
-						sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://eatwallet/public/js/marketplace/
-						sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://eatwallet/public/js/staff/
-						sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://eatwallet/public/js/reseller/
-						sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://eatwallet/public/js/merchant/
-						sudo aws s3 cp --recursive /home/devops/common/js/ s3://eatwallet/public/js/common/
-						sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://eatwallet/public/css/marketplace/
-						sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://eatwallet/public/css/staff/
-						sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://eatwallet/public/css/reseller/
-						sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://eatwallet/public/css/merchant/
-						sudo aws s3 cp --recursive /home/devops/common/css/ s3://eatwallet/public/css/common/
-						sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://eatwallet/public/images/marketplace/
-						sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://eatwallet/public/images/staff/
-						sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://eatwallet/public/images/reseller/
-						sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://eatwallet/public/images/merchant/
-						sudo aws cloudfront create-invalidation --distribution-id E2VIUIU0A8LO3Z --paths "/js/*" "/css/*" "/images/*"
-						sudo rm -rf /home/devops/common/css/*
-						sudo rm -rf /home/devops/common/js/*''',  
-						execTimeout: 0, flatten: false, 
-						makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
-						remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-						verbose: true)])
-					}
-			  }
+        // stage('CDN Sync')
+		//       {
+		//       when { expression { params.PHP_RELEASE} }
+        //         steps {
+        // 				sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+        // 				transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+        // 				execCommand: '''cd /home/devops
+		// 				if [ ! -d "common" ]; then
+		// 				     sudo mkdir common
+		// 				     sudo mkdir common/css
+		// 				     sudo mkdir common/js
+		// 				fi
+		// 				cd /var/www/html
+		// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+		// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+		// 				sudo rm -rf /home/devops/common/js/awss3.js
+		// 				cd eg_yii2_framework_v2/egiftify_extensions
+		// 				sudo aws s3 cp --recursive onboarding/js/ s3://eatwallet/public/js/common/
+		// 				sudo aws s3 cp --recursive onboarding/css/ s3://eatwallet/public/css/common/
+		// 				sudo aws s3 cp --recursive egiftify/js/ s3://eatwallet/public/js/common/
+		// 				sudo aws s3 cp --recursive egiftify/css/ s3://eatwallet/public/css/common/
+		// 				sudo aws s3 cp --recursive payment/js/ s3://eatwallet/public/js/common/
+		// 				sudo aws s3 cp --recursive payment/css/ s3://eatwallet/public/css/common/
+		// 				sudo aws s3 cp --recursive commonAssets/js/ s3://eatwallet/public/js/common/
+		// 				sudo aws s3 cp --recursive commonAssets/css/ s3://eatwallet/public/css/common/
+		// 				sudo aws s3 cp --recursive payment/images/ s3://eatwallet/public/images/common/
+		// 				sudo aws s3 cp --recursive onboarding/images/ s3://eatwallet/public/images/common/
+		// 				cd /var/www/html
+		// 				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://eatwallet/public/js/marketplace/
+		// 				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://eatwallet/public/js/staff/
+		// 				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://eatwallet/public/js/reseller/
+		// 				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://eatwallet/public/js/merchant/
+		// 				sudo aws s3 cp --recursive /home/devops/common/js/ s3://eatwallet/public/js/common/
+		// 				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://eatwallet/public/css/marketplace/
+		// 				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://eatwallet/public/css/staff/
+		// 				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://eatwallet/public/css/reseller/
+		// 				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://eatwallet/public/css/merchant/
+		// 				sudo aws s3 cp --recursive /home/devops/common/css/ s3://eatwallet/public/css/common/
+		// 				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://eatwallet/public/images/marketplace/
+		// 				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://eatwallet/public/images/staff/
+		// 				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://eatwallet/public/images/reseller/
+		// 				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://eatwallet/public/images/merchant/
+		// 				sudo aws cloudfront create-invalidation --distribution-id E2VIUIU0A8LO3Z --paths "/js/*" "/css/*" "/images/*"
+		// 				sudo rm -rf /home/devops/common/css/*
+		// 				sudo rm -rf /home/devops/common/js/*''',  
+		// 				execTimeout: 0, flatten: false, 
+		// 				makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+		// 				remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+		// 				usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+		// 				verbose: true)])
+		// 			}
+		// 	  }
 /**
  STAGE 10. Running DbScript
 */
