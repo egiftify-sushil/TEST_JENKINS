@@ -602,7 +602,6 @@ pipeline {
                           	if [ -d "eg_scheduler_services" ]; then
  								cd eg_scheduler_services
 								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
 								rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
 								rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
 								cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
