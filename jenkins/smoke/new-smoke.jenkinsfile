@@ -1,17 +1,17 @@
 /**
 Point to rember : use JDK 17 For building the java and spring projects for version V_6_1
 GITURL is present in environments
-STAGE 1:-  Deleting pipeline workspace
-STAGE 2:- Doing Java  Checkout (JAVA , PHP)
-STAGE 3:-  Doing Java Repos Checkout From Git (SPRING)
+STAGE 1:- Deleting pipeline workspace
+STAGE 2:-Doing Java  Checkout (JAVA , PHP)
+STAGE 3:-Doing Java Repos Checkout From Git (SPRING)
 STAGE 4.Running Maven Build on Services cloned from git
 STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 STAGE 6.Running Maven Build on Services
 STAGE 7.Creating Patch (Running maven build,php composer and code packaging)
 STAGE 8.Deploying On Server
 STAGE 9.Syncing & Invalidating assets using aws CLI
-STAGE 10. Running DbScript
-STAGE 11. Sending Email notification to developers
+STAGE 10.Running DbScript
+STAGE 11.Sending Email notification to developers
 PLUGINS USED:-
 CVSSCM:- To checkout the code from CVS repository server
 GITSCM:- To checkout the code from GIT repository server
@@ -50,7 +50,7 @@ pipeline {
 /**
   STAGE 1.Deleting Pipeline Workspace
 */
-        stage('Preparing For Upload By Cleaning Wokrspace') {
+    stage('Preparing for upload') {
             steps {
                 script
                 {
@@ -58,13 +58,12 @@ pipeline {
                 }
             }
         }
-
 /**
   STAGE 2. Doing Java Repos from git and cvs  Checkout
 */
-        stage('Code Checkout for Java And Php ') {
+        stage('Code checkout for Jersey And Php') {
             parallel {
-                stage('Services  Checkout JAVA RELEASE') {
+                stage('Legacy services checkout ') {
                     when { expression { params.JAVA_RELEASE } }
                     steps {
                         withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
@@ -84,7 +83,7 @@ pipeline {
                         }
                     }
                 }
-                stage('PHP Checkout') {
+                stage('PHP checkout') {
                     when { expression { params.PHP_RELEASE } }
                     steps {
                         sh '''
@@ -111,7 +110,7 @@ pipeline {
 /**
   STAGE 3. Doing Java Repos Checkout From Git
 */
-        stage('Common Spring Repos Checkout') {
+        stage('Code checkout for global meta and jersey object') {
             parallel {
                 stage('Common Repos Checkout (Git)') {
                     when { expression { params.JAVA_RELEASE } }
@@ -131,7 +130,7 @@ pipeline {
                         }
                     }
                 }
-                stage('OPS Checkout ') {
+                stage('OPS checkout ') {
                     when { expression { params.OPS_RELEASE } }
                     steps {
                             script {
@@ -146,7 +145,7 @@ pipeline {
                                     }
                                 }
                             }
-                            }
+                        }
                     }
                 }
             }
@@ -155,7 +154,7 @@ pipeline {
 /**
   STAGE 4.Running Maven Build on Services and Platform cloned from git
 */
-        stage('Building Spring Repos') {
+        stage('Building global meta and jersey object') {
             parallel {
                 stage('Building Common Spring Jars') {
                     when { expression { params.JAVA_RELEASE } }
@@ -188,7 +187,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Building OPS Repos') {
+                stage('Building OPS') {
                     when { expression { params.OPS_RELEASE } }
 
                     steps {
@@ -216,21 +215,15 @@ pipeline {
                                 }
                             }
                         }
-
-
-
-
                     }
                 }
-
-
             }
         }
 /**
    STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 */
 
-        stage('Build CVS Platform') {
+        stage('Building legacy platform') {
             when {
                 expression { params.JAVA_RELEASE }
             }
@@ -256,7 +249,7 @@ pipeline {
   STAGE 6.Running Maven Build on Services and Running Node build in angular services
 */
 
-        stage('Build CVS Services') {
+        stage('Building legacy services') {
             when {
                 expression { params.JAVA_RELEASE }
             }
@@ -306,31 +299,42 @@ pipeline {
             }
         }
 
-        stage('Build Angular Services') {
+        stage('Building angular services') {
                     when {
                         expression { params.PHP_RELEASE }
                     }
-                    steps {
-                        script {
-                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                sh '''
-                                    cd html/eg_customer_ang_v1
-                                    # Install project dependencies
+                       steps {
+                            script {
+                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                    sh '''
+                                        cd html/eg_customer_ang_v1
+                                        # Install project dependencies
                                         npm install
 
-                                    # Build the project
-                                        ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                        ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-                                   '''
+                                        # Build the project
+                                        ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                        ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                        # Move the wallet and customer folders to the html directory
+                                        mv dist/customer ../customer
+                                        mv dist/wallet ../wallet
+
+                                        # Navigate back to the html directory and delete eg_customer_ang_v1
+                                        cd ..
+                                        rm -rf eg_customer_ang_v1
+                                    '''
+                                }
                             }
-                        }
-                    }
+                       }
+   
+
+
         }
 
 /**
    STAGE 7.Creating Patch (Running maven build,php composer and code packaging)
 */
-        stage('Creating Services & Scheduler Patch') {
+        stage('Creating legacy services & scheduler patch') {
             when { expression { params.JAVA_RELEASE } }
             steps {
                 sh '''
@@ -376,7 +380,7 @@ pipeline {
             }
         }
 
-        stage('Creating PHP Patch') {
+        stage('Creating PHP patch') {
                 when { expression { params.PHP_RELEASE } }
                 steps {
                 sh '''
@@ -392,19 +396,19 @@ pipeline {
         }
  /** stage 8 :  Deploying On Server
  */
-        stage('Deploying On Server') {
+        stage('Deploying on server') {
             parallel {
-                    stage('JAVA') {
+                    stage('Legacy Services') {
                     when { expression { params.JAVA_RELEASE } }
                         steps {
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                           transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
                           execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                           patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
                           sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                           verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
                             sudo cd /var/lib/tomcat9/webapps
@@ -425,8 +429,6 @@ pipeline {
                             sudo sleep 10
                             cd /var/www/html/shfiles
                             sudo ./schedularProcess.sh
-                        
-                        
                         ''',
                         execTimeout: 0,
                         flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
@@ -434,7 +436,7 @@ pipeline {
                         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                         verbose: true)])
 
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                          transfers: [sshTransfer(cleanRemote: false, excludes: '',
                          execCommand: '''
                             cd /var/www/html/shfiles
@@ -445,6 +447,8 @@ pipeline {
                             sudo sleep 10
                             cd /var/www/html/shfiles
                             sudo ./schedularProcess.sh
+                            sudo sleep 10
+                            exit
                             ''',
 
                          execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
@@ -457,7 +461,7 @@ pipeline {
                 stage('PHP') {
                         when { expression { params.PHP_RELEASE } }
                             steps {
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
@@ -466,7 +470,7 @@ pipeline {
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /home/devops
                                 cd /var/www/html
@@ -483,38 +487,15 @@ pipeline {
                             }
                 }
 
-                stage('OPS') {
+              stage('OPS') 
+              {
                 when { expression { params.OPS_RELEASE } }
                 steps {
                     sshPublisher(
                         publishers: [
                             sshPublisherDesc(
-                                configName: 'TEST_SERVER',
+                                configName: 'OPS',
                                 transfers: [
-                                    // Step 1: Remove the existing ops.jar file
-                                    sshTransfer(
-                                        cleanRemote: false,
-                                        excludes: '',
-                                        execCommand: '''
-                                            # Check existing files
-                                            sudo ls -l /home/devops/
-                                            
-                                            # Remove all files and directories
-                                            sudo rm -rf /home/devops/processing_system
-                                            sudo rm /home/devops/run_ops.sh
-
-                                        ''',
-                                        execTimeout: 0,
-                                        flatten: false,
-                                        makeEmptyDirs: false,
-                                        noDefaultExcludes: false,
-                                        patternSeparator: '[, ]+',
-                                        remoteDirectory: '',
-                                        remoteDirectorySDF: false,
-                                        removePrefix: '',
-                                        sourceFiles: ''
-                                    ),
-                                    // Step 2: Transfer ops.jar
                                     sshTransfer(
                                         cleanRemote: false,
                                         excludes: '',
@@ -524,30 +505,11 @@ pipeline {
                                         makeEmptyDirs: false,
                                         noDefaultExcludes: false,
                                         patternSeparator: '[, ]+',
-                                        remoteDirectory: 'processing_system',
+                                        remoteDirectory: '/home/devops',
                                         remoteDirectorySDF: false,
                                         removePrefix: 'processing_system/target',
                                         sourceFiles: 'processing_system/target/ops.jar'
                                     ),
-                                    // Step 3: Create and execute the shell script
-                                    sshTransfer(
-                                        cleanRemote: false,
-                                        excludes: '',
-                                        execCommand: '''
-                                            echo '#!/bin/bash' > /home/devops/run_ops.sh
-                                            echo 'java -jar /home/devops/processing_system/ops.jar' >> /home/devops/run_ops.sh
-                                            sudo chmod +x /home/devops/run_ops.sh
-                                            sudo /home/devops/run_ops.sh
-                                        ''',
-                                        execTimeout: 0,
-                                        flatten: false,
-                                        makeEmptyDirs: false,
-                                        noDefaultExcludes: false,
-                                        patternSeparator: '[, ]+',
-                                        remoteDirectory: '',
-                                        remoteDirectorySDF: false,
-                                        sourceFiles: ''
-                                    )
                                 ],
                                 usePromotionTimestamp: false,
                                 useWorkspaceInPromotion: false,
@@ -557,15 +519,12 @@ pipeline {
                     )
                 }
             }
-
-
-        }
-
-        }
+         }
+      }
 /**
 STAGE 9.Syncing & Invalidating assets using aws CLI
 */
-         stage('CDN Sync')
+        stage('CDN Sync')
 		      {
 		      when { expression { params.PHP_RELEASE} }
                 steps {
@@ -632,7 +591,7 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
                                   cp ${target_dir} database/
                                   zip -r database-${BUILD_NUMBER}.zip database
                                   """
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                                   transfers: [sshTransfer(cleanRemote: false, excludes: '',
                                   execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
                                   noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
@@ -641,7 +600,7 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
                                   usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                                   verbose: true)])
 
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
                                   unzip database-${BUILD_NUMBER}.zip -d /home/devops
                                   chmod -R 775 database
                                   cd /var/www/html/shfiles
@@ -652,7 +611,7 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
                                   patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                                   removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
                                   useWorkspaceInPromotion: false, verbose: true)])
-                    }
+                       }
                                else {
                                 echo 'No db script found'
                                }
@@ -679,18 +638,18 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
     }
 }
 if (buildStatus == 'SUCCESS') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON TEST_SERVER"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the TEST_SERVER server. Please verify your changes."
+    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
+    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
 }
  else if (buildStatus == 'UNSTABLE') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON TEST_SERVER IS UNSTABLE"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on TEST_SERVER server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
+    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
+    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
     attachment = true
  }
  else
  {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON TEST_SERVER"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the TEST_SERVER server. Please find the attachments for logs"
+    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
+    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
     attachment = true
  }
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleira@iqbsys.com'
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
