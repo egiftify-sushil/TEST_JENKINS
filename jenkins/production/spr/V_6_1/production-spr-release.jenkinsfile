@@ -352,7 +352,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             // Define Maven commands
                             def mavenCommands = [
                             'mvn clean',
@@ -367,12 +367,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
                                     sh """
-                                    export JAVA_HOME=${javaHome}
-                                    export PATH=\$JAVA_HOME/bin:\$PATH
                                     ${command}
                                     """
+                                    }
                                     }
                                 }
                             }
@@ -398,8 +398,7 @@ pipeline {
                 stage('Building Platform Repos') {
                     when { expression { params.OPS } }
                     steps {
-                        script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                        script {                            
                             def mavenCommands = [
                                 'mvn clean install'
                             ]
@@ -411,12 +410,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
+                                   withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                        """
+                                    sh """
+                                    ${command}
+                                    """
+                                    }
                                     }
                                 }
                             }
