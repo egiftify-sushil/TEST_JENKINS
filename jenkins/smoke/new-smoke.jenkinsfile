@@ -401,55 +401,42 @@ pipeline {
                     stage('Legacy Services') {
                     when { expression { params.JAVA_RELEASE } }
                         steps {
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
-                          transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
-                          execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                          patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
-                          sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                          verbose: true)])
-
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '''
-                            cd /home/devops
-                            cd /var/lib/tomcat9/webapps
-                            sudo rm -rf  eg_lifeline_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_merchant_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_portal_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_customer_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
-                            sudo rm -rf  eg_scheduler/lib/*
-                            cd /home/devops
-                            sudo unzip -o webapps.zip -d /var/lib/tomcat9/
-                            sudo rm -rf /home/devops/webapps.zip
-                        ''',
-                        execTimeout: 0,
-                        flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+',
-                        remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                        usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                        verbose: true)])
-
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
-                         transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                         execCommand: '''
-                            cd /var/www/html/shfiles
-                            sudo ./killSchedularProcess.sh
-                            sudo kill -9 $(ps aux | grep '/opt/tomcat9' | grep -v grep | awk '{print $2}')
-                            cd /opt/tomcat9/bin
-                            sudo ./startup.sh
-                            sudo sleep 10
-                            cd /var/www/html/shfiles
-                            sudo ./schedularProcess.sh
-                            sudo sleep 10
-                            exit
-                            ''',
-
-                         execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-                         removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                         verbose: true)])
-                        }
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+                        execCommand: '''cd /home/devops
+						cd /var/lib/tomcat9/webapps
+						sudo rm -rf  eg_lifeline_services/WEB-INF/lib/*
+						sudo rm -rf  eg_merchant_services/WEB-INF/lib/*
+						sudo rm -rf  eg_portal_services/WEB-INF/lib/*
+						sudo rm -rf  eg_customer_services/WEB-INF/lib/*
+						sudo rm -rf  eg_scheduler_services/WEB-INF/lib/*
+						sudo rm -rf  eg_scheduler/lib/*
+						cd /home/devops
+						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+						sudo rm -rf /home/devops/webapps.zip''', 
+						execTimeout: 0, 
+						flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+						remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+						
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+					    transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						execCommand: '''cd /var/www/html/shfiles
+						 sudo ./killSchedularProcess.sh
+						 cd /opt/tomcat9/bin
+						 sudo ./shutdown.sh  2>/dev/null
+						 sudo sleep 5
+						 sudo ./startup.sh
+						 sudo sleep 30
+						 cd /var/www/html/shfiles
+						 sudo ./schedularProcess.sh''',
+						 execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						 patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+						 removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						 verbose: true)])
                     }
+                }
 
                 stage('PHP') {
                         when { expression { params.PHP_RELEASE } }
