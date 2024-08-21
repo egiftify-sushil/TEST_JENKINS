@@ -594,7 +594,43 @@ pipeline {
                                     sh "mv webapps.zip webapps-${uprNumber}.zip"
                                 }
                             }
-                          }
+                        }
+                        
+                        stage('Creating Scheduler Patch') {
+                            when { expression { params.EXPLORER } }
+                            steps {
+                                withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
+                                    sh '''
+                                    if [ ! -d "deliverywebapps" ]; then
+                                        mkdir deliverywebapps
+                                    fi
+                                    mkdir deliverywebapps/eg_scheduler_services
+                                    mkdir deliverywebapps/eg_scheduler
+                                    mkdir deliverywebapps/eg_scheduler/lib
+
+                                    if [ -d "eg_scheduler_services" ]; then
+                                        cd eg_scheduler_services
+                                        mvn clean
+                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+                                        rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
+                                        rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
+                                        cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
+                                        cd ..
+                                    fi
+
+                                    cd eg_scheduler
+                                    mvn clean
+                                    mvn package
+                                    cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
+                                    cd ..
+                                    '''
+                                    sh '''
+                                    cd deliverywebapps
+                                    zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services
+                                    '''
+                                }
+                            }
+                        }
                       stage('Creating PHP Patch'){
                         when { expression { params.APOLLO} }
                         steps {
@@ -896,7 +932,7 @@ pipeline {
 			// 	      } 
 
              }
-              }  
+              
          	post {
 		         success {
 		                    script{
