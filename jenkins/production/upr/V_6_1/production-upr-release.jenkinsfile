@@ -356,35 +356,36 @@ pipeline {
                             }
                         }
                     } 
-                    stage('Building Platform Repos') {
-                        when { expression { params.OPS } }
-                        steps {
-                            script {
-                               
-                                def mavenCommands = [
-                                    'mvn clean install'
-                                ]
-                                springplatformRepos.each { repo ->
-                                    dir(repo) {
-                                        // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                        sh '''
-                                        find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                        '''
-
-                                        // Execute Maven commands
-                                        mavenCommands.each { command ->
-                                            sh """
-                                            ${command}
-                                            """
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                   
 
 		            stage('Build Services') {
-			               parallel {                                    
+			               parallel {                   
+                                    stage('Building OPS repos') {
+                                        when { expression { params.OPS } }
+                                        steps {
+                                            script {
+                                            
+                                                def mavenCommands = [
+                                                    'mvn clean install'
+                                                ]
+                                                springplatformRepos.each { repo ->
+                                                    dir(repo) {
+                                                        // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                                        sh '''
+                                                        find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                                        '''
+
+                                                        // Execute Maven commands
+                                                        mavenCommands.each { command ->
+                                                            sh """
+                                                            ${command}
+                                                            """
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }                 
 				              		 stage('Portal Services') {
 				              		  when { expression { params.MARINER } }
 						                 steps {
