@@ -285,7 +285,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                           
                             // Define Maven commands
                             def mavenCommands = [
                             'mvn clean',
@@ -302,8 +302,6 @@ pipeline {
                                     // Execute Maven commands
                                     mavenCommands.each { command ->
                                     sh """
-                                    export JAVA_HOME=${javaHome}
-                                    export PATH=\$JAVA_HOME/bin:\$PATH
                                     ${command}
                                     """
                                     }
@@ -358,37 +356,35 @@ pipeline {
                             }
                         }
                     } 
+                    stage('Building Platform Repos') {
+                        when { expression { params.OPS } }
+                        steps {
+                            script {
+                               
+                                def mavenCommands = [
+                                    'mvn clean install'
+                                ]
+                                springplatformRepos.each { repo ->
+                                    dir(repo) {
+                                        // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                        sh '''
+                                        find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
+                                        '''
 
-		            stage('Build Services') {
-			               parallel {
-                                    stage('Building Platform Repos') {
-                                        when { expression { params.OPS } }
-                                        steps {
-                                            script {
-                                                def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
-                                                def mavenCommands = [
-                                                    'mvn clean install'
-                                                ]
-                                                springplatformRepos.each { repo ->
-                                                    dir(repo) {
-                                                        // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                                        sh '''
-                                                        find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                                        '''
-
-                                                        // Execute Maven commands
-                                                        mavenCommands.each { command ->
-                                                            sh """
-                                                            export JAVA_HOME=${javaHome}
-                                                            export PATH=\$JAVA_HOME/bin:\$PATH
-                                                            ${command}
-                                                            """
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                        // Execute Maven commands
+                                        mavenCommands.each { command ->
+                                            sh """
+                                            ${command}
+                                            """
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+
+		            stage('Build Services') {
+			               parallel {                                    
 				              		 stage('Portal Services') {
 				              		  when { expression { params.MARINER } }
 						                 steps {
