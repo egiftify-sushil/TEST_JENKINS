@@ -26,17 +26,18 @@ def sprNumber = ''
 def servers = ''
 def buildStatus = 'SUCCESS'
 def attachment = false
+// common jars
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
 def springplatformRepos = [
     'sp_dynamo_document',
     'sp_mysql_application_entity',
     'object_library',
     'processing_system'
+
 ]
-def springcommonRepos = [
-    'global_meta',
-    'jersey_object_library'
-]
-// def GitUrl =''
 pipeline {
      /** Defining workspace for the node **/
     agent {
@@ -301,20 +302,19 @@ pipeline {
    STAGE 4.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
 
  */
-
-        stage('Common Repos Checkout') {
+        stage('Code checkout for global meta and jersey object') {
             parallel {
-                    stage('Spring common Libraries') {
+                stage('Common Repos Checkout (Git)') {
                     when { expression { params.MARINER ||  params.EXPLORER } }
                     steps {
                         script {
                             withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                                springcommonRepos.each { repo1 ->
-                                    dir(repo1) {
+                                springcommonRepos.each { repo ->
+                                    dir(repo) {
                                         checkout([
                                             $class: 'GitSCM',
-                                            branches: [[name: "${params.gitbranch}"]],
-                                            userRemoteConfigs: [[url: "${GITURL}/${repo1}.git"]]]
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
                                         )
                                     }
                                 }
@@ -322,20 +322,20 @@ pipeline {
                         }
                     }
                 }
-                stage('platform') {
-                    when { expression { params.OPS } }
+                stage('OPS checkout ') {
+                    when { expression { params.OPS} }
                     steps {
-                        script {
+                            script {
                             withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                            springplatformRepos.each { repo ->
-                                dir(repo) {
-                                    checkout([
+                                springplatformRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranch}"]],
                                         userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
+                                    }
                                 }
-                            }
                             }
                         }
                     }
