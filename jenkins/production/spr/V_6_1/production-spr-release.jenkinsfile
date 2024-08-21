@@ -598,22 +598,11 @@ pipeline {
                       when { expression { params.APOLLO || params.APOLLOANGULAR } }
 
                         steps {
-                        script {
-                            if (params.APOLLO && params.APOLLOANGULAR) {
-                                error('Both APOLLO and APOLLOANGULAR parameters cannot be true simultaneously.')
-                             } else if (params.APOLLO) {
-                                // Commands for APOLLO
-                                sh '''
-                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-                                '''
-                                sh "zip -r html-${sprNumber}.zip html/*"
-                             } else if (params.APOLLOANGULAR) {
-                                // Commands for APOLLOANGULAR
+                        script {                           
                                 sh '''
                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                                 '''
-                                sh "zip -r html-${sprNumber}.zip html/*"
-                            }
+                                sh "zip -r html-${sprNumber}.zip html/*"                            
                         }
                     }
                 }
