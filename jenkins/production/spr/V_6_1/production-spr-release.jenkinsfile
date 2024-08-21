@@ -598,22 +598,11 @@ pipeline {
                       when { expression { params.APOLLO || params.APOLLOANGULAR } }
 
                         steps {
-                        script {
-                            if (params.APOLLO && params.APOLLOANGULAR) {
-                                error('Both APOLLO and APOLLOANGULAR parameters cannot be true simultaneously.')
-                             } else if (params.APOLLO) {
-                                // Commands for APOLLO
-                                sh '''
-                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-                                '''
-                                sh "zip -r html-${sprNumber}.zip html/*"
-                             } else if (params.APOLLOANGULAR) {
-                                // Commands for APOLLOANGULAR
+                        script {                           
                                 sh '''
                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                                 '''
-                                sh "zip -r html-${sprNumber}.zip html/*"
-                            }
+                                sh "zip -r html-${sprNumber}.zip html/*"                            
                         }
                     }
                 }
@@ -711,11 +700,15 @@ pipeline {
 
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """sudo cd /home/devops
-                            sudo rm -rf  /var/www/html/eg_yii2_framework_v2/*
-                            sudo unzip -o html-${sprNumber}.zip -d /var/www/
-                            sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                            sudo rm -rf /home/devops/html-${sprNumber}.zip""",
+                            execCommand: """
+                                cd /home/devops
+                                cd /var/www/html
+                                sudo rm -rf  eg_yii2_framework_v2
+                                cd /home/devops
+                                sudo unzip -o html-${sprNumber}.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+                                sudo rm -rf /home/devops/html-${sprNumber}.zip
+                            """,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
@@ -737,11 +730,17 @@ pipeline {
 
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """sudo cd /home/devops
-                            sudo rm -rf  /var/www/html/*
-                            sudo unzip -o html-${sprNumber}.zip -d /var/www/
-                            sudo chmod -R 777 /var/www/html/
-                            sudo rm -rf /home/devops/html-${sprNumber}.zip""",
+                            execCommand: """
+                                cd /home/devops
+                                cd /var/www/html
+                                sudo rm -rf customer
+                                sudo rm -rf wallet
+                                cd /home/devops
+                                sudo unzip -o html-${sprNumber}.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/customer/
+                                sudo chmod -R 777 /var/www/html/wallet/
+                                sudo rm -rf /home/devops/html-${sprNumber}.zip
+                            """,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
