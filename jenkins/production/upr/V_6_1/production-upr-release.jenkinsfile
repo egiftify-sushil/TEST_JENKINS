@@ -287,10 +287,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
-                                    mavenCommands.each { command ->
-                                    sh """
-                                    ${command}
-                                    """
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                        mavenCommands.each { command ->
+                                        sh """
+                                        ${command}
+                                        """
+                                        }
                                     }
                                 }
                             }
@@ -378,11 +380,13 @@ pipeline {
                                                         '''
 
                                                         // Execute Maven commands
-                                                        mavenCommands.each { command ->
-                                                            sh """
-                                                            ${command}
-                                                            """
-                                                        }
+                                                         withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                                            mavenCommands.each { command ->
+                                                                sh """
+                                                                ${command}
+                                                                """
+                                                            }
+                                                         }
                                                     }
                                                 }
                                             }
@@ -391,13 +395,13 @@ pipeline {
 				              		 stage('Portal Services') {
 				              		  when { expression { params.MARINER } }
 						                 steps {
-									             sh '''
-													cd eg_portal_services
-													mvn clean
-													mvn install -Dpackaging.type=jar -U
-													cd ..
-													rm -rf eg_portal_services
-													'''
+                                            sh '''
+                                            cd eg_portal_services
+                                            mvn clean
+                                            mvn install -Dpackaging.type=jar -U
+                                            cd ..
+                                            rm -rf eg_portal_services
+                                            '''
 						                     }
 				                  		 }
 				                  	 stage('Customer Services') {
