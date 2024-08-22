@@ -388,10 +388,13 @@ pipeline {
                         stage('Build eg_lifeline_services') {
                             steps {
                                 dir('eg_lifeline_services') {
-                                    sh 'mvn clean
+                                    sh '''
+                                                mvn clean
 												mvn install -Dpackaging.type=jar -U
 												cd ..
-												rm -rf eg_lifeline_services'
+												rm -rf eg_lifeline_services
+                                                
+                                                '''
                                 }
                             }
                         }
