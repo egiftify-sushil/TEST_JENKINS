@@ -367,6 +367,7 @@ pipeline {
 				              		 stage('Portal Services') {
 				              		  when { expression { params.MARINER } }
 						                 steps {
+                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                             sh '''
                                             cd eg_portal_services
                                             mvn clean
@@ -375,10 +376,12 @@ pipeline {
                                             rm -rf eg_portal_services
                                             '''
 						                     }
+                                         }
 				                  		 }
 				                  	 stage('Customer Services') {
 				                  	  when { expression { params.MARINER } }
 					                      steps {
+                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
 								             sh '''
 												cd eg_customer_services
 												mvn clean
@@ -386,11 +389,13 @@ pipeline {
 												cd ..
 												rm -rf eg_customer_services
 												'''
+                                            }
 					                     }
 				                   	}
 				                    stage('Lifeline Services') {
 				                     when { expression { params.MARINER } }
 					                      steps {
+                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
 								             sh '''
 												cd eg_lifeline_services
 												mvn clean
@@ -398,11 +403,13 @@ pipeline {
 												cd ..
 												rm -rf eg_lifeline_services
 												'''
+                                            }
 					                     }
 				                   }
 				                   stage('Merchant Services') {
 				                    when { expression { params.MARINER } }
 				                      steps {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
 							             sh '''
 											cd eg_merchant_services
 											mvn clean
@@ -410,11 +417,13 @@ pipeline {
 											cd ..
 											rm -rf eg_merchant_services
 											'''
+                                        }   
 				                     }
 				                   }
 				                   stage('Scheduler Services') {
 				                    when { expression { params.EXPLORER } }
 				                      steps {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
 							             sh '''
 											cd eg_scheduler_services
 											mvn clean
@@ -422,6 +431,7 @@ pipeline {
 											cd ..
 											rm -rf eg_scheduler_services
 											'''
+                                        }   
 				                     }
 				                   }                                                                    
 			                   }
