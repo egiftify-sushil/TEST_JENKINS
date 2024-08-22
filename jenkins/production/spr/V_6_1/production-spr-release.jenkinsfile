@@ -672,7 +672,7 @@ pipeline {
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /var/www/html/shfiles
                             sudo ./newkillSchedularProcess.sh
-                            cd /opt/tomcat9/bin
+                            sudo cd /opt/tomcat9/bin
                             sudo ./shutdown.sh  2>/dev/null
                             sudo sleep 5
                             sudo ./startup.sh
@@ -750,32 +750,14 @@ pipeline {
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sshPublisher(
-                                publishers: [
-                                    sshPublisherDesc(
-                                        configName: 'TEST_SERVER',
-                                        transfers: [
-                                            sshTransfer(
-                                                cleanRemote: false,
-                                                excludes: '',
-                                                execCommand: '',
-                                                execTimeout: 0,
-                                                flatten: false,
-                                                makeEmptyDirs: false,
-                                                noDefaultExcludes: false,
-                                                patternSeparator: '[, ]+',
-                                                remoteDirectory: '/home/devops',
-                                                remoteDirectorySDF: false,
-                                                removePrefix: 'processing_system/target',
-                                                sourceFiles: 'processing_system/target/ops.jar'
-                                            ),
-                                        ],
-                                        usePromotionTimestamp: false,
-                                        useWorkspaceInPromotion: false,
-                                        verbose: true
-                                    )
-                                ]
-                            )
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'processing_system/target/ops.jar')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
                        }
                        }
             }
