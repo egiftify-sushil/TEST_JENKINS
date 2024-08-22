@@ -634,7 +634,7 @@ pipeline {
                             sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
                             cd /opt/tomcat9/bin
                             . shutdown.sh
-                            sleep 5
+                            sleep 15
                             . startup.sh
                             sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
@@ -674,11 +674,11 @@ pipeline {
                             . newkillSchedularProcess.sh
                             cd /opt/tomcat9/bin
                             . shutdown.sh  2>/dev/null
-                            sleep 5
+                            sleep 20
                             . startup.sh
                             sleep 10
                             cd /var/www/html/shfiles
-                            ./schedularProcess.sh''',
+                            . schedularProcess.sh''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
