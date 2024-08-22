@@ -750,12 +750,13 @@ pipeline {
                        {
                         when { expression { params.OPS } }
                         steps {
+                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${sprNumber}.jar"
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'processing_system/target/ops.jar')],
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${sprNumber}.jar")],
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
                        }
