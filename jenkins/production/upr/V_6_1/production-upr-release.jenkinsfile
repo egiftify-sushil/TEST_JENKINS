@@ -426,7 +426,10 @@ pipeline {
 				                   }                                                                    
 			                   }
 		                   }
-                            stage('Building OPS repos') {
+                               
+		              }  
+        	     } 
+                 stage('Building OPS repos') {
                                 when { expression { params.OPS } }
                                 steps {
                                     script {
@@ -453,9 +456,7 @@ pipeline {
                                         }
                                     }
                                 }
-                            }      
-		              }  
-        	     } 
+                            }   
 /**
   STAGE 5.Doing Patch Checkout of java,php and scheduler
  */  	                        
