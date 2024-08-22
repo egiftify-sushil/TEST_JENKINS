@@ -360,82 +360,70 @@ pipeline {
                             }
                         }
                     } 
-                   
-
-		             stage('Build Services') {
-			               parallel {                                                         
-				              		 stage('Portal Services') {
-				              		  when { expression { params.MARINER } }
-						                 steps {
-                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                            cd eg_portal_services
-                                            mvn clean
+                    stage('Building Portal services') {
+                    when { expression { params.MARINER } }
+                     parallel {
+                        stage('Build eg_portal_services') {
+                            steps {
+                                dir('eg_portal_services') {
+                                    sh 'mvn clean
                                             mvn install -Dpackaging.type=jar -U
                                             cd ..
-                                            rm -rf eg_portal_services
-                                            '''
-						                     }
-                                         }
-				                  		 }
-				                  	 stage('Customer Services') {
-				                  	  when { expression { params.MARINER } }
-					                      steps {
-                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-								             sh '''
-												cd eg_customer_services
-												mvn clean
+                                            rm -rf eg_portal_services'
+                                }
+                            }
+                        }
+                        stage('Build eg_customer_services') {
+                            steps {
+                                dir('eg_customer_services') {
+                                    sh 'mvn clean
 												mvn install -Dpackaging.type=jar -U
 												cd ..
-												rm -rf eg_customer_services
-												'''
-                                            }
-					                     }
-				                   	}
-				                    stage('Lifeline Services') {
-				                     when { expression { params.MARINER } }
-					                      steps {
-                                            withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-								             sh '''
-												cd eg_lifeline_services
-												mvn clean
+												rm -rf eg_customer_services'
+                                }
+                            }
+                        }
+                        stage('Build eg_lifeline_services') {
+                            steps {
+                                dir('eg_lifeline_services') {
+                                    sh 'mvn clean
 												mvn install -Dpackaging.type=jar -U
 												cd ..
-												rm -rf eg_lifeline_services
-												'''
-                                            }
-					                     }
-				                   }
-				                   stage('Merchant Services') {
-				                    when { expression { params.MARINER } }
-				                      steps {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-							             sh '''
-											cd eg_merchant_services
-											mvn clean
+												rm -rf eg_lifeline_services'
+                                }
+                            }
+                        }
+                        stage('Build eg_merchant_services') {
+                            steps {
+                                dir('eg_merchant_services') {
+                                    sh 'mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
-											rm -rf eg_merchant_services
-											'''
-                                        }   
-				                     }
-				                   }
-				                   stage('Scheduler Services') {
-				                    when { expression { params.EXPLORER } }
-				                      steps {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-							             sh '''
-											cd eg_scheduler_services
-											mvn clean
+											rm -rf eg_merchant_services'
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+                stage('Building Scheduler services') {
+                    when { expression { params.EXPLORER } }
+                    parallel {
+                      stage('Building eg_scheduler_services for explorer') {
+                            steps {
+                                dir('eg_scheduler_services') {
+                                    sh 'mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
-											rm -rf eg_scheduler_services
-											'''
-                                        }   
-				                     }
-				                   }                                                                    
-			                   }
-		                   }
+											rm -rf eg_scheduler_services'
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+
+		             
                                
 		              }  
         	     } 
