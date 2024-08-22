@@ -514,18 +514,23 @@ pipeline {
                                    # Build the project
                                      ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
                                      ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                   # Check if html directory exists and move the folders accordingly
-                                     if [ -d "../../html" ]; then
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     else
-                                     mkdir -p ../../html
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     fi
-
+                                  
                                  '''
+                                 sh """
+                                 # Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     mv dist/customer dist/customer-${sprNumber}
+                                     mv dist/wallet dist/wallet-${sprNumber}
+                                     cp -r dist/customer-${sprNumber} ../../html/
+                                     cp -r dist/wallet-${sprNumber} ../../html/
+                                     else
+                                     mv dist/customer dist/customer-${sprNumber}
+                                     mv dist/wallet dist/wallet-${sprNumber}
+                                     mkdir -p ../../html
+                                     cp -r dist/customer-${sprNumber} ../../html/
+                                     cp -r dist/wallet-${sprNumber} ../../html/
+                                     fi
+                                 """
                             }
                         }
                     }
@@ -767,90 +772,90 @@ pipeline {
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
 **/
- stage('CDN Sync')
-		   {
-		     when { expression { params.APOLLO} }
-               steps {
-		        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
-		        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
-				if [ ! -d "common" ]; then
-				     sudo mkdir common
-				     sudo mkdir common/css
-				     sudo mkdir common/js
-				fi
-				cd /var/www/html
-				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
-				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
-				sudo rm -rf /home/devops/common/js/awss3.js
-				cd eg_yii2_framework_v2/egiftify_extensions
-				sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
-				sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
-				sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
-				sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
-				sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
-				sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
-				sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
-				sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
-				sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
-				sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
-				cd /var/www/html
-				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
-				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
-				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
-				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
-				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
-				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
-				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
-				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
-				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
-				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
-				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
-				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
-				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
-				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
-				sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
-				sudo rm -rf /home/devops/common/css/*
-				sudo rm -rf /home/devops/common/js/*''',  
-				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-				useWorkspaceInPromotion: false, verbose: true)])
-		      }
-			}
+//  stage('CDN Sync')
+// 		   {
+// 		     when { expression { params.APOLLO} }
+//                steps {
+// 		        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+// 		        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+// 				if [ ! -d "common" ]; then
+// 				     sudo mkdir common
+// 				     sudo mkdir common/css
+// 				     sudo mkdir common/js
+// 				fi
+// 				cd /var/www/html
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+// 				sudo rm -rf /home/devops/common/js/awss3.js
+// 				cd eg_yii2_framework_v2/egiftify_extensions
+// 				sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
+// 				sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
+// 				cd /var/www/html
+// 				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
+// 				sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
+// 				sudo rm -rf /home/devops/common/css/*
+// 				sudo rm -rf /home/devops/common/js/*''',  
+// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+// 				useWorkspaceInPromotion: false, verbose: true)])
+// 		      }
+// 			}
 // /**
 //  STAGE 9. Adding and Removing Server to TG
 // */
-       stage('Attach Server to TG'){
-                 parallel{     
-			                stage('Adding APOLLO 1 Removing APOLLO 2')
-			                {
-			                 when { expression { params.APOLLO} }
-			                   steps{
+    //    stage('Attach Server to TG'){
+    //              parallel{     
+	// 		                stage('Adding APOLLO 1 Removing APOLLO 2')
+	// 		                {
+	// 		                 when { expression { params.APOLLO} }
+	// 		                   steps{
 			                   		
-					        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
-								          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
-								          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
-								          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
-								          sleep 10
-									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
-									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
-									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
-									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
 								  
-								   }
-			                }
+	// 							   }
+	// 		                }
 			                
-			                stage('Adding MARINER 1 Removing MARINER 2')
-			                {
-			                  when { expression { params.MARINER} }
-			                   steps{
-					        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
-								          sleep 10
-									      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
-								   }
-			                }
-			              }
-			      } 
+	// 		                stage('Adding MARINER 1 Removing MARINER 2')
+	// 		                {
+	// 		                  when { expression { params.MARINER} }
+	// 		                   steps{
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
+	// 							   }
+	// 		                }
+	// 		              }
+	// 		      } 
     }
     post {
         success {
