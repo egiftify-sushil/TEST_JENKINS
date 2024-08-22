@@ -514,23 +514,18 @@ pipeline {
                                    # Build the project
                                      ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
                                      ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-                                  
-                                 '''
-                                 sh """
-                                 # Check if html directory exists and move the folders accordingly
+
+                                   # Check if html directory exists and move the folders accordingly
                                      if [ -d "../../html" ]; then
-                                     mv dist/customer dist/customer-${sprNumber}
-                                     mv dist/wallet dist/wallet-${sprNumber}
-                                     cp -r dist/customer-${sprNumber} ../../html/
-                                     cp -r dist/wallet-${sprNumber} ../../html/
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
                                      else
-                                     mv dist/customer dist/customer-${sprNumber}
-                                     mv dist/wallet dist/wallet-${sprNumber}
                                      mkdir -p ../../html
-                                     cp -r dist/customer-${sprNumber} ../../html/
-                                     cp -r dist/wallet-${sprNumber} ../../html/
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
                                      fi
-                                 """
+
+                                 '''
                             }
                         }
                     }
