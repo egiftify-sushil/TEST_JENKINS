@@ -419,7 +419,7 @@ pipeline {
                         }
                         
                     }
-                }
+                
                 stage('Building Scheduler services') {
                     when { expression { params.EXPLORER } }
                     parallel {
@@ -441,7 +441,7 @@ pipeline {
 
 		             
                                
-		              }  
+		        
         	     } 
                  stage('Building OPS repos') {
                                 when { expression { params.OPS } }
