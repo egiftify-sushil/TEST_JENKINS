@@ -400,7 +400,13 @@ pipeline {
             parallel {
                     stage('Legacy Services') {
                     when { expression { params.JAVA_RELEASE } }
-                        steps {
+                       steps {
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+  				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+  				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+  				        sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+  				        verbose: true)])  				        
                         sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
                         transfers: [sshTransfer(cleanRemote: false, excludes: '', 
                         execCommand: '''cd /home/devops
@@ -420,22 +426,22 @@ pipeline {
 						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 						verbose: true)])
 						
-						sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
-					    transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '''cd /var/www/html/shfiles
+						 sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+					     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						 execCommand: '''cd /var/www/html/shfiles
 						 sudo ./killSchedularProcess.sh
 						 cd /opt/tomcat9/bin
 						 sudo ./shutdown.sh  2>/dev/null
 						 sudo sleep 5
 						 sudo ./startup.sh
-						 sudo sleep 30
+						 sudo sleep 10
 						 cd /var/www/html/shfiles
 						 sudo ./schedularProcess.sh''',
 						 execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 						 patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
 						 removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 						 verbose: true)])
-                    }
+					  }
                 }
 
                 stage('PHP') {
@@ -469,7 +475,7 @@ pipeline {
 
               stage('OPS') 
               {
-                when { expression { params.OPS_RELEASE } }
+                when { expression { params.PHP_RELEASE } }
                 steps {
                     sshPublisher(
                         publishers: [
