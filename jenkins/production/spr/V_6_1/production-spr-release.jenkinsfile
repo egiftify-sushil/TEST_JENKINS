@@ -633,9 +633,9 @@ pipeline {
                             cd /home/devops
                             sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
                             cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh
+                            . shutdown.sh
                             sleep 5
-                            sudo ./startup.sh
+                            . startup.sh
                             sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+',
@@ -671,14 +671,14 @@ pipeline {
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /var/www/html/shfiles
-                            sudo ./newkillSchedularProcess.sh
-                            sudo cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh  2>/dev/null
-                            sudo sleep 5
-                            sudo ./startup.sh
-                            sudo sleep 10
+                            . newkillSchedularProcess.sh
+                            cd /opt/tomcat9/bin
+                            . shutdown.sh  2>/dev/null
+                            sleep 5
+                            . startup.sh
+                            sleep 10
                             cd /var/www/html/shfiles
-                            sudo ./schedularProcess.sh''',
+                            ./schedularProcess.sh''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
