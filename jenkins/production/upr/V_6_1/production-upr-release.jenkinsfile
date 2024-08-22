@@ -366,28 +366,34 @@ pipeline {
                         stage('Build eg_portal_services') {
                             steps {
                                 dir('eg_portal_services') {
+                                     withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                     sh ''' mvn clean
                                             mvn install -Dpackaging.type=jar -U
                                             cd ..
                                             rm -rf eg_portal_services
                                             '''
+                                     }
+                                }
                                 }
                             }
                         }
                         stage('Build eg_customer_services') {
                             steps {
                                 dir('eg_customer_services') {
+                                     withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                     sh ''' mvn clean
 												mvn install -Dpackaging.type=jar -U
 												cd ..
 												rm -rf eg_customer_services
                                                 '''
                                 }
+                                }
                             }
                         }
                         stage('Build eg_lifeline_services') {
                             steps {
                                 dir('eg_lifeline_services') {
+                                     withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                     sh '''
                                                 mvn clean
 												mvn install -Dpackaging.type=jar -U
@@ -396,15 +402,18 @@ pipeline {
                                                 
                                                 '''
                                 }
+                                }
                             }
                         }
                         stage('Build eg_merchant_services') {
                             steps {
                                 dir('eg_merchant_services') {
+                                     withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                     sh ''' mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
 											rm -rf eg_merchant_services '''
+                                }
                                 }
                             }
                         }
@@ -417,10 +426,12 @@ pipeline {
                       stage('Building eg_scheduler_services for explorer') {
                             steps {
                                 dir('eg_scheduler_services') {
+                                     withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                     sh ''' mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
 											rm -rf eg_scheduler_services '''
+                                }
                                 }
                             }
                         }
