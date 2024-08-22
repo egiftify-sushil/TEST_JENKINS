@@ -366,20 +366,22 @@ pipeline {
                         stage('Build eg_portal_services') {
                             steps {
                                 dir('eg_portal_services') {
-                                    sh 'mvn clean
+                                    sh ''' mvn clean
                                             mvn install -Dpackaging.type=jar -U
                                             cd ..
-                                            rm -rf eg_portal_services'
+                                            rm -rf eg_portal_services
+                                            '''
                                 }
                             }
                         }
                         stage('Build eg_customer_services') {
                             steps {
                                 dir('eg_customer_services') {
-                                    sh 'mvn clean
+                                    sh ''' mvn clean
 												mvn install -Dpackaging.type=jar -U
 												cd ..
-												rm -rf eg_customer_services'
+												rm -rf eg_customer_services
+                                                '''
                                 }
                             }
                         }
@@ -396,10 +398,10 @@ pipeline {
                         stage('Build eg_merchant_services') {
                             steps {
                                 dir('eg_merchant_services') {
-                                    sh 'mvn clean
+                                    sh ''' mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
-											rm -rf eg_merchant_services'
+											rm -rf eg_merchant_services '''
                                 }
                             }
                         }
@@ -412,10 +414,10 @@ pipeline {
                       stage('Building eg_scheduler_services for explorer') {
                             steps {
                                 dir('eg_scheduler_services') {
-                                    sh 'mvn clean
+                                    sh ''' mvn clean
 											mvn install -Dpackaging.type=jar -U
 											cd ..
-											rm -rf eg_scheduler_services'
+											rm -rf eg_scheduler_services '''
                                 }
                             }
                         }
