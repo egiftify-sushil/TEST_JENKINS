@@ -170,9 +170,7 @@ pipeline {
                             springcommonRepos.each { repo1 ->
                                 dir(repo1) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                     '''
+                                   
 
                                     // Execute Maven commands
                                     withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
@@ -200,9 +198,7 @@ pipeline {
                             springplatformRepos.each { repo1 ->
                                 dir(repo1) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
+                                   
 
                                     // Execute Maven commands
                                     withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
@@ -222,26 +218,58 @@ pipeline {
 /**
    STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 */
-
-        stage('Building legacy platform') {
-            when {
-                expression { params.JAVA_RELEASE }
-            }
-            steps {
-                script {
-                    def buildSteps = [
-                        ['name': 'eg_objects', 'path': 'eg_objects'],
-                        ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
-                        ['name': 'eg_platform', 'path': 'eg_platform'],
-                        ['name': 'scheduler_base', 'path': 'scheduler_base']
-                    ]
-                    buildSteps.each { step ->
-                        dir(step.path) {
-                            sh 'mvn clean'
-                            sh 'mvn install -U'
+        stage('Running Maven and Npm build'){
+         parallel{
+            stage('Building legacy platform') {
+                when {
+                    expression { params.JAVA_RELEASE }
+                }
+                steps {
+                    script {
+                        def buildSteps = [
+                            ['name': 'eg_objects', 'path': 'eg_objects'],
+                            ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                            ['name': 'eg_platform', 'path': 'eg_platform'],
+                            ['name': 'scheduler_base', 'path': 'scheduler_base']
+                        ]
+                        buildSteps.each { step ->
+                            dir(step.path) {
+                                sh 'mvn clean'
+                                sh 'mvn install -U'
+                            }
                         }
                     }
                 }
+            }
+            stage('Building angular services') {
+                        when {
+                            expression { params.PHP_RELEASE }
+                        }
+                        steps {
+                                script {
+                                    withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                        sh '''
+                                            cd html/eg_customer_ang_v1
+                                            # Install project dependencies
+                                            npm install
+
+                                            # Build the project
+                                            ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                            ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                            # Move the wallet and customer folders to the html directory
+                                            mv dist/customer ../customer
+                                            mv dist/wallet ../wallet
+
+                                            # Navigate back to the html directory and delete eg_customer_ang_v1
+                                            cd ..
+                                            rm -rf eg_customer_ang_v1
+                                        '''
+                                    }
+                                }
+                        }
+            
+                    }
             }
         }
 
@@ -299,41 +327,13 @@ pipeline {
             }
         }
 
-        stage('Building angular services') {
-                    when {
-                        expression { params.PHP_RELEASE }
-                    }
-                       steps {
-                            script {
-                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                    sh '''
-                                        cd html/eg_customer_ang_v1
-                                        # Install project dependencies
-                                        npm install
-
-                                        # Build the project
-                                        ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                        ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                        # Move the wallet and customer folders to the html directory
-                                        mv dist/customer ../customer
-                                        mv dist/wallet ../wallet
-
-                                        # Navigate back to the html directory and delete eg_customer_ang_v1
-                                        cd ..
-                                        rm -rf eg_customer_ang_v1
-                                    '''
-                                }
-                            }
-                       }
-   
-
-
-        }
+        
 
 /**
    STAGE 7.Creating Patch (Running maven build,php composer and code packaging)
 */
+        stage('Create Patch'){
+                 parallel{
         stage('Creating legacy services & scheduler patch') {
             when { expression { params.JAVA_RELEASE } }
             steps {
@@ -393,6 +393,8 @@ pipeline {
                     zip -r html.zip html/*
                     '''
                 }
+        }
+        }
         }
  /** stage 8 :  Deploying On Server
  */
@@ -607,19 +609,19 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
         }
     }
 }
-if (buildStatus == 'SUCCESS') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
-}
- else if (buildStatus == 'UNSTABLE') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
-    attachment = true
- }
- else
- {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
-    attachment = true
- }
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+// if (buildStatus == 'SUCCESS') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
+// }
+//  else if (buildStatus == 'UNSTABLE') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
+//     attachment = true
+//  }
+//  else
+//  {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
+//     attachment = true
+//  }
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
