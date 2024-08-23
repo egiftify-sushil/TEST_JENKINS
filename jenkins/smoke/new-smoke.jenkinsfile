@@ -161,7 +161,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             def mavenCommands = [
                             'mvn clean install'
 
@@ -175,12 +175,12 @@ pipeline {
                                      '''
 
                                     // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                        """
+                                    sh """                                   
+                                    ${command}
+                                    """
+                                    }
                                     }
                                 }
                             }
@@ -192,7 +192,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             def mavenCommands = [
                                 'mvn clean install'
                             ]
@@ -205,12 +205,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                        """
+                                    sh """                                   
+                                    ${command}
+                                    """
+                                    }
                                     }
                                 }
                             }
@@ -400,8 +400,14 @@ pipeline {
             parallel {
                     stage('Legacy Services') {
                     when { expression { params.JAVA_RELEASE } }
-                        steps {
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
+                       steps {
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+  				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+  				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+  				        sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+  				        verbose: true)])  				        
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
                         transfers: [sshTransfer(cleanRemote: false, excludes: '', 
                         execCommand: '''cd /home/devops
 						cd /var/lib/tomcat9/webapps
@@ -420,28 +426,29 @@ pipeline {
 						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 						verbose: true)])
 						
-						sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', 
-					    transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '''cd /var/www/html/shfiles
-						 sudo ./killSchedularProcess.sh
-						 cd /opt/tomcat9/bin
-						 sudo ./shutdown.sh  2>/dev/null
-						 sudo sleep 5
-						 sudo ./startup.sh
-						 sudo sleep 30
-						 cd /var/www/html/shfiles
-						 sudo ./schedularProcess.sh''',
+						 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+					     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						 execCommand: '''cd /var/www/html/shfiles
+                                        . killSchedularProcess.sh
+                                        cd /opt/tomcat9/bin       
+                                        . shutdown.sh 2>/dev/null
+                                        sleep 20
+                                        . startup.sh          
+                                        sleep 15
+                                        cd /var/www/html/shfiles
+                                        . schedularProcess.sh
+                                        ''',
 						 execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 						 patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
 						 removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 						 verbose: true)])
-                    }
+					  }
                 }
 
                 stage('PHP') {
                         when { expression { params.PHP_RELEASE } }
                             steps {
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
@@ -450,7 +457,7 @@ pipeline {
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
 
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /home/devops
                                 cd /var/www/html
@@ -458,7 +465,8 @@ pipeline {
                                 cd /home/devops
                                 sudo unzip -o html.zip -d /var/www/
                                 sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                                sudo rm -rf /home/devops/html.zip''',
+                               
+                                ''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+',
                             remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
@@ -471,39 +479,21 @@ pipeline {
               {
                 when { expression { params.OPS_RELEASE } }
                 steps {
-                    sshPublisher(
-                        publishers: [
-                            sshPublisherDesc(
-                                configName: 'OPS',
-                                transfers: [
-                                    sshTransfer(
-                                        cleanRemote: false,
-                                        excludes: '',
-                                        execCommand: '',
-                                        execTimeout: 0,
-                                        flatten: false,
-                                        makeEmptyDirs: false,
-                                        noDefaultExcludes: false,
-                                        patternSeparator: '[, ]+',
-                                        remoteDirectory: '/home/devops',
-                                        remoteDirectorySDF: false,
-                                        removePrefix: 'processing_system/target',
-                                        sourceFiles: 'processing_system/target/ops.jar'
-                                    ),
-                                ],
-                                usePromotionTimestamp: false,
-                                useWorkspaceInPromotion: false,
-                                verbose: true
-                            )
-                        ]
-                    )
+                   sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'processing_system/target/ops.jar')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
                 }
             }
          }
       }
 /**
 STAGE 9.Syncing & Invalidating assets using aws CLI
-*/
+*/ 
         // stage('CDN Sync')
 		//       {
 		//       when { expression { params.PHP_RELEASE} }
@@ -571,7 +561,7 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
                                   cp ${target_dir} database/
                                   zip -r database-${BUILD_NUMBER}.zip database
                                   """
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
+                                  sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke',
                                   transfers: [sshTransfer(cleanRemote: false, excludes: '',
                                   execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
                                   noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
@@ -580,7 +570,7 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
                                   usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                                   verbose: true)])
 
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+                                  sshPublisher(publishers: [sshPublisherDesc(configName: 'Smoke', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
                                   unzip database-${BUILD_NUMBER}.zip -d /home/devops
                                   chmod -R 775 database
                                   cd /var/www/html/shfiles
@@ -632,4 +622,4 @@ if (buildStatus == 'SUCCESS') {
     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
     attachment = true
  }
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'

@@ -26,23 +26,24 @@ def sprNumber = ''
 def servers = ''
 def buildStatus = 'SUCCESS'
 def attachment = false
+// common jars
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
 def springplatformRepos = [
     'sp_dynamo_document',
     'sp_mysql_application_entity',
     'object_library',
     'processing_system'
+
 ]
-def springcommonRepos = [
-    'global_meta',
-    'jersey_object_library'
-]
-// def GitUrl =''
 pipeline {
      /** Defining workspace for the node **/
     agent {
         node {
                     label ''
-                    customWorkspace '/var/devops/spr/'
+                    customWorkspace '/var/devops/spr_testing/'
           }
     }
     /**
@@ -301,20 +302,19 @@ pipeline {
    STAGE 4.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
 
  */
-
-        stage('Common Repos Checkout') {
+        stage('Code checkout for global meta and jersey object') {
             parallel {
-                    stage('Spring common Libraries') {
+                stage('Common Repos Checkout (Git)') {
                     when { expression { params.MARINER ||  params.EXPLORER } }
                     steps {
                         script {
                             withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                                springcommonRepos.each { repo1 ->
-                                    dir(repo1) {
+                                springcommonRepos.each { repo ->
+                                    dir(repo) {
                                         checkout([
                                             $class: 'GitSCM',
-                                            branches: [[name: "${params.gitbranch}"]],
-                                            userRemoteConfigs: [[url: "${GITURL}/${repo1}.git"]]]
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
                                         )
                                     }
                                 }
@@ -322,20 +322,20 @@ pipeline {
                         }
                     }
                 }
-                stage('platform') {
-                    when { expression { params.OPS } }
+                stage('OPS checkout ') {
+                    when { expression { params.OPS} }
                     steps {
-                        script {
+                            script {
                             withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                            springplatformRepos.each { repo ->
-                                dir(repo) {
-                                    checkout([
+                                springplatformRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
                                         $class: 'GitSCM',
                                         branches: [[name: "${gitbranch}"]],
                                         userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
                                     ])
+                                    }
                                 }
-                            }
                             }
                         }
                     }
@@ -352,7 +352,7 @@ pipeline {
 
                     steps {
                         script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                            
                             // Define Maven commands
                             def mavenCommands = [
                             'mvn clean',
@@ -367,12 +367,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
                                     sh """
-                                    export JAVA_HOME=${javaHome}
-                                    export PATH=\$JAVA_HOME/bin:\$PATH
                                     ${command}
                                     """
+                                    }
                                     }
                                 }
                             }
@@ -396,10 +396,9 @@ pipeline {
 
        
                 stage('Building Platform Repos') {
-                    when { expression { params.OPS_RELEASE } }
+                    when { expression { params.OPS } }
                     steps {
-                        script {
-                            def javaHome = '/usr/lib/jvm/java-17-amazon-corretto'
+                        script {                            
                             def mavenCommands = [
                                 'mvn clean install'
                             ]
@@ -411,12 +410,12 @@ pipeline {
                                     '''
 
                                     // Execute Maven commands
+                                   withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                        """
+                                    sh """
+                                    ${command}
+                                    """
+                                    }
                                     }
                                 }
                             }
@@ -634,9 +633,9 @@ pipeline {
                             cd /home/devops
                             sudo unzip -o webapps-${sprNumber}.zip -d /var/lib/tomcat9/
                             cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh
-                            sleep 5
-                            sudo ./startup.sh
+                            . shutdown.sh
+                            sleep 15
+                            . startup.sh
                             sudo rm -rf /home/devops/webapps-${sprNumber}.zip""",
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+',
@@ -672,14 +671,14 @@ pipeline {
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''cd /var/www/html/shfiles
-                            sudo ./newkillSchedularProcess.sh
+                            . newkillSchedularProcess.sh
                             cd /opt/tomcat9/bin
-                            sudo ./shutdown.sh  2>/dev/null
-                            sudo sleep 5
-                            sudo ./startup.sh
-                            sudo sleep 10
+                            . shutdown.sh  2>/dev/null
+                            sleep 20
+                            . startup.sh
+                            sleep 10
                             cd /var/www/html/shfiles
-                            sudo ./schedularProcess.sh''',
+                            . schedularProcess.sh''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
                             patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
                             removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
@@ -751,32 +750,15 @@ pipeline {
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sshPublisher(
-                                publishers: [
-                                    sshPublisherDesc(
-                                        configName: 'TEST_SERVER',
-                                        transfers: [
-                                            sshTransfer(
-                                                cleanRemote: false,
-                                                excludes: '',
-                                                execCommand: '',
-                                                execTimeout: 0,
-                                                flatten: false,
-                                                makeEmptyDirs: false,
-                                                noDefaultExcludes: false,
-                                                patternSeparator: '[, ]+',
-                                                remoteDirectory: '/home/devops',
-                                                remoteDirectorySDF: false,
-                                                removePrefix: 'processing_system/target',
-                                                sourceFiles: 'processing_system/target/ops.jar'
-                                            ),
-                                        ],
-                                        usePromotionTimestamp: false,
-                                        useWorkspaceInPromotion: false,
-                                        verbose: true
-                                    )
-                                ]
-                            )
+                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${sprNumber}.jar"
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${sprNumber}.jar")],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
                        }
                        }
             }
@@ -785,11 +767,90 @@ pipeline {
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
 **/
-
+//  stage('CDN Sync')
+// 		   {
+// 		     when { expression { params.APOLLO} }
+//                steps {
+// 		        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+// 		        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+// 				if [ ! -d "common" ]; then
+// 				     sudo mkdir common
+// 				     sudo mkdir common/css
+// 				     sudo mkdir common/js
+// 				fi
+// 				cd /var/www/html
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+// 				sudo rm -rf /home/devops/common/js/awss3.js
+// 				cd eg_yii2_framework_v2/egiftify_extensions
+// 				sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
+// 				sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
+// 				cd /var/www/html
+// 				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
+// 				sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
+// 				sudo rm -rf /home/devops/common/css/*
+// 				sudo rm -rf /home/devops/common/js/*''',  
+// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+// 				useWorkspaceInPromotion: false, verbose: true)])
+// 		      }
+// 			}
 // /**
 //  STAGE 9. Adding and Removing Server to TG
 // */
-       
+    //    stage('Attach Server to TG'){
+    //              parallel{     
+	// 		                stage('Adding APOLLO 1 Removing APOLLO 2')
+	// 		                {
+	// 		                 when { expression { params.APOLLO} }
+	// 		                   steps{
+			                   		
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+								  
+	// 							   }
+	// 		                }
+			                
+	// 		                stage('Adding MARINER 1 Removing MARINER 2')
+	// 		                {
+	// 		                  when { expression { params.MARINER} }
+	// 		                   steps{
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
+	// 							   }
+	// 		                }
+	// 		              }
+	// 		      } 
     }
     post {
         success {
