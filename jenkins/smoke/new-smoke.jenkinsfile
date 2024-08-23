@@ -607,19 +607,19 @@ STAGE 9.Syncing & Invalidating assets using aws CLI
         }
     }
 }
-if (buildStatus == 'SUCCESS') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
-}
- else if (buildStatus == 'UNSTABLE') {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
-    attachment = true
- }
- else
- {
-    subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
-    env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
-    attachment = true
- }
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+// if (buildStatus == 'SUCCESS') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
+// }
+//  else if (buildStatus == 'UNSTABLE') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
+//     attachment = true
+//  }
+//  else
+//  {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
+//     attachment = true
+//  }
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
