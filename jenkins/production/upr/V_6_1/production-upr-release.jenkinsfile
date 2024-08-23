@@ -1,7 +1,7 @@
 /**
 THiS FILE UPLOADs CODE ON MARINER 1, APOLLO 1 & EXPLORER
 
-UPR RELEASE Pipeline for mariner 1 and TEST_SERVER.
+UPR RELEASE Pipeline for mariner 1 and Apollo1.
 We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
 There are 9 main stages involved in releasing the upr
 STAGE 1:-  Verifying upr param and deleting pipeline workspace
@@ -20,94 +20,60 @@ CVSSCM:- To checkout the code from repository server
 
 **/
 def branchname = ""
-def gitBranch = ''
-def uprNumber = ''
-def servers = ''
-def buildStatus = 'SUCCESS'
-def attachment = false
-def springplatformRepos = [
-    'sp_dynamo_document',
-    'sp_mysql_application_entity',
-    'object_library',
-    'processing_system'
-
-]
-
-def springcommonRepos = [
-    'global_meta',
-    'jersey_object_library'
-]
+def uprNumber = "";
+def servers = "";
+def buildStatus = "SUCCESS";
+def attachment = false;
 pipeline {
 
      /** Defining workspace for the node **/
      agent {
              node {
 		            label ''
-		            customWorkspace '/var/devops/testing/'
+		            customWorkspace '/var/devops/upr/'
          		 }
           }
     /**
      Setting jdk for java build
     */
      tools {
-        jdk 'jdk14'
-        jdk 'jdk17'
-        nodejs 'nodejs14'
-    }
+       jdk "jdk14"
+     }
      /**
        Params to define which codebase we want to upload 
      */
     parameters {
-        // new bool value for ops
-        booleanParam(name: 'OPS', defaultValue: false)
-        booleanParam(name: 'MARINER', defaultValue: false)
-        booleanParam(name: 'APOLLO', defaultValue: false)
-        booleanParam(name: 'EXPLORER', defaultValue: false)
-        booleanParam(name: "APOLLOANGULAR", defaultValue: false)
-        // for apolo-angular
-        string(name: 'UPR_NUMBER', defaultValue: '', description: 'Provide UPR Number')
-        string(name: 'GIT_BRANCH', defaultValue: '', description: 'Provide UPR Git Branch')
+        booleanParam(name: "MARINER", defaultValue: false)
+        booleanParam(name: "APOLLO", defaultValue: false)
+        booleanParam(name: "EXPLORER", defaultValue: false)
+        string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
         string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
     }
     stages {        
 /**
   STAGE 1.Verifying upr param and Deleting Pipeline Workspace
 */
-         stage('Initiate SP Release') {
-            steps {
-                script {
-                    if (params.UPR_NUMBER == '') {
-                        currentBuild.result = 'ABORTED'
-                        error('UPR NUMBER Not  Defined�')
-                         }else {
-                        uprNumber = params.UPR_NUMBER
-                        gitBranch = params.GIT_BRANCH
-                        branchname = params.BRANCH_NAME;
-
-                        if (params.OPS) {
-                                servers = 'TEST_SERVER'
-                        }
-
-                        if (params.MARINER) {
-                                servers = 'TEST_SERVER'
-                        }
-
-                        if (params.APOLLO) {
-                                servers = servers + 'TEST_SERVER '
-                        }
-                        if (params.EXPLORER) {
-                                servers = servers + 'TEST_SERVER'
-                        }
-                        if (params.APOLLOANGULAR) {
-                                servers = 'TEST_SERVER'
-                        }
-
-                        cleanWs()
-                        currentBuild.description = 'UPR ' + params.UPR_NUMBER
-                    }
-                }
-            }
-        }
+         stage('Initiate UPR Release'){
+             steps {
+             		 script {
+           			    if (params.UPR_NUMBER == '' || params.BRANCH_NAME == '') {
+					         currentBuild.result = 'ABORTED'
+					         error('UPR NUMBER Not Defined…')
+					     }else{
+					          uprNumber = params.UPR_NUMBER;
+					          branchname = params.BRANCH_NAME;
+					          if(params.MARINER)
+					            servers = "MARINER 1 ";
+					          if(params.APOLLO)  
+					            servers = servers+"APOLLO 1 ";
+					          if(params.EXPLORER)
+					            servers = servers+"EXPLORER";
+					          cleanWs()
+					          currentBuild.description = "UPR "+params.UPR_NUMBER
+					     }
+                       }
+                   }
+             }
 /**
   STAGE 2. Removing instance from taget groups.
            AWS CLI configured on jenkins used to perform this task
@@ -156,56 +122,56 @@ pipeline {
  STAGE 3. Taking backup of old codes on servers in /var/devops/backups/ dir
           ssh plugin used to excute the ssh  command on all remote servers
 */
-    // stage('Backup'){
-    //  parallel{
-    //    stage('MARINER 1'){
-    //     when { expression { params.MARINER } }
-    //        steps {
+    stage('Backup'){
+     parallel{
+       stage('MARINER 1'){
+        when { expression { params.MARINER } }
+           steps {
                  
-	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	          execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf webapps*
-	// 				cd /var/lib/tomcat9/webapps
-	// 				sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-	// 				noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-	// 				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         } 
-    //         stage('EXPLORER'){
-    //          when { expression { params.EXPLORER } }
-    //            steps {
-	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, 
-	// 		          excludes: '',
-	// 		          execCommand: """cd /var/devops/backups
-	// 					sudo rm -rf delivery*
-	// 					cd  /opt/tomcat9/webapps
-	// 					sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
-	// 					""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-	// 					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 					useWorkspaceInPromotion: false, verbose: true)])
-	// 		          }
-    //        }
-    //         stage('APOLLO 1'){
-    //         when { expression { params.APOLLO } }
-    //          steps {
-	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	           execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf html*
-	// 			    cd /var/www/html
-	// 				sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-	// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         }  
-    //       }
-    //      } 
+		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+		          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		          execCommand: """cd /var/devops/backups
+					sudo rm -rf webapps*
+					cd /var/lib/tomcat9/webapps
+					sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+					noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+					remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            } 
+            stage('EXPLORER'){
+             when { expression { params.EXPLORER } }
+               steps {
+			          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
+			          excludes: '',
+			          execCommand: """cd /var/devops/backups
+						sudo rm -rf delivery*
+						cd  /opt/tomcat9/webapps
+						sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
+						""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+						removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+						useWorkspaceInPromotion: false, verbose: true)])
+			          }
+           }
+            stage('APOLLO 1'){
+            when { expression { params.APOLLO } }
+             steps {
+		           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
+		           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		           execCommand: """cd /var/devops/backups
+					sudo rm -rf html*
+				    cd /var/www/html
+					sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            }  
+          }
+         } 
 /**
  STAGE 4. Doing Checkout of JAVA Main Branch code using CVSSCM plugin configured on the jenkins.
           Main branch code is required to perform the partial builds . Also we are creating jars
@@ -232,248 +198,93 @@ pipeline {
 			               }
 	                    }
                  }
-                 stage('Spring common Libraries') {
-                    when { expression { params.MARINER ||  params.EXPLORER } }
-                    steps {
-                        script {
-                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                                springcommonRepos.each { repo1 ->
-                                    dir(repo1) {
-                                        checkout([
-                                            $class: 'GitSCM',
-                                            branches: [[name: "${gitBranch}"]],
-                                            userRemoteConfigs: [[url: "${GITURL}/${repo1}.git"]]]
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                stage('OPS checkout ') {
-                    when { expression { params.OPS} }
-                    steps {
-                            script {
-                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-                                springplatformRepos.each { repo ->
-                                    dir(repo) {
-                                        checkout([
-                                        $class: 'GitSCM',
-                                        branches: [[name: "${gitBranch}"]],
-                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
-                                    ])
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                stage('Building Platform') {
-                    when { expression { params.MARINER || params.EXPLORER } }
-                    steps {
-                        script {
-                           
-                            // Define Maven commands
-                            def mavenCommands = [
-                            'mvn clean',
-                            'mvn install -U'
-                            ]
-                            // Execute springcommonRepos first
-                            springcommonRepos.each { repo ->
-                                dir(repo) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
-                                    // Execute Maven commands
-                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-                                        mavenCommands.each { command ->
-                                        sh """
-                                        ${command}
-                                        """
-                                        }
-                                    }
-                                }
-                            }
-                            // Define build steps
-                            def buildSteps = [
-                                ['name': 'eg_objects', 'path': 'eg_objects'],
-                                ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
-                                ['name': 'eg_platform', 'path': 'eg_platform'],
-                                ['name': 'scheduler_base', 'path': 'scheduler_base']
-                            ]
-                            // Execute buildSteps
-                            buildSteps.each { step ->
-                                dir(step.path) {
-                                    sh 'mvn clean'
-                                    sh 'mvn install -U'
-                                }
-                            }
-                        }
-                    }
-                   }
-                   stage('Angular Repos Checkout') {
-                            when { expression { params.APOLLOANGULAR } }
-                            steps {
-                                sh 'mkdir -p angular'
-                                withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
-                                {
-                                    checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
-                                    cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
-                                    repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
-                                    passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname,
-                                    useHeadIfNotFound: false], modules: [
-                                    [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
-                                }
-                            }
-                    } 
-                    stage('Build Angular Services') {
-                        when {
-                            expression { params.APOLLOANGULAR }
-                        }
-                        steps {
-                            script {
-                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                    sh '''
-                                    cd angular/eg_customer_ang_v1
-
-                                    # Install project dependencies                                   
-                                        npm install
-
-                                    # Build the project
-                                        ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                        ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                    # Check if html directory exists and move the folders accordingly
-                                        if [ -d "../../html" ]; then
-                                        cp -r dist/customer ../../html/
-                                        cp -r dist/wallet ../../html/
-                                        else
-                                        mkdir -p ../../html
-                                        cp -r dist/customer ../../html/
-                                        cp -r dist/wallet ../../html/
-                                        fi
-
-                                    '''
-                                }
-                            }
-                        }
-                    } 
-                    stage('Building Portal services') {
-                        when { expression { params.MARINER } }
-                        parallel {
-                            stage('Build eg_portal_services') {
-                                steps {
-                                    dir('eg_portal_services') {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                                mvn clean
-                                                mvn install -Dpackaging.type=jar -U
-                                                cd ..
-                                                rm -rf eg_portal_services
-                                            '''
-                                        }
-                                    }
-                                }
-                            }
-                            stage('Build eg_customer_services') {
-                                steps {
-                                    dir('eg_customer_services') {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                                mvn clean
-                                                mvn install -Dpackaging.type=jar -U
-                                                cd ..
-                                                rm -rf eg_customer_services
-                                            '''
-                                        }
-                                    }
-                                }
-                            }
-                            stage('Build eg_lifeline_services') {
-                                steps {
-                                    dir('eg_lifeline_services') {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                                mvn clean
-                                                mvn install -Dpackaging.type=jar -U
-                                                cd ..
-                                                rm -rf eg_lifeline_services
-                                            '''
-                                        }
-                                    }
-                                }
-                            }
-                            stage('Build eg_merchant_services') {
-                                steps {
-                                    dir('eg_merchant_services') {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                                mvn clean
-                                                mvn install -Dpackaging.type=jar -U
-                                                cd ..
-                                                rm -rf eg_merchant_services
-                                            '''
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    stage('Building Scheduler services') {
-                        when { expression { params.EXPLORER } }
-                        parallel {
-                            stage('Building eg_scheduler_services for explorer') {
-                                steps {
-                                    dir('eg_scheduler_services') {
-                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                            sh '''
-                                                mvn clean
-                                                mvn install -Dpackaging.type=jar -U
-                                                cd ..
-                                                rm -rf eg_scheduler_services
-                                            '''
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-		             
-                               
+		         stage('Build  Platform') {
+		             when { expression { params.MARINER || params.EXPLORER } }
+			               steps{
+			                      sh '''cd eg_objects
+										mvn clean
+										mvn install -U
+										cd ..
+										cd eg_platform
+										cd platform
+										mvn clean
+										mvn install -U
+										cd ..
+										mvn clean
+										mvn install -U 
+										cd ..
+										cd scheduler_base
+										mvn clean
+										mvn install -U
+										'''
+			                    } 
+		            }
+		           stage('Build Services') {
+			               parallel {
+				              		 stage('Portal Services') {
+				              		  when { expression { params.MARINER } }
+						                 steps {
+									             sh '''
+													cd eg_portal_services
+													mvn clean
+													mvn install -Dpackaging.type=jar -U
+													cd ..
+													rm -rf eg_portal_services
+													'''
+						                     }
+				                  		 }
+				                  	 stage('Customer Services') {
+				                  	  when { expression { params.MARINER } }
+					                      steps {
+								             sh '''
+												cd eg_customer_services
+												mvn clean
+												mvn install -Dpackaging.type=jar -U
+												cd ..
+												rm -rf eg_customer_services
+												'''
+					                     }
+				                   	}
+				                    stage('Lifeline Services') {
+				                     when { expression { params.MARINER } }
+					                      steps {
+								             sh '''
+												cd eg_lifeline_services
+												mvn clean
+												mvn install -Dpackaging.type=jar -U
+												cd ..
+												rm -rf eg_lifeline_services
+												'''
+					                     }
+				                   }
+				                   stage('Merchant Services') {
+				                    when { expression { params.MARINER } }
+				                      steps {
+							             sh '''
+											cd eg_merchant_services
+											mvn clean
+											mvn install -Dpackaging.type=jar -U
+											cd ..
+											rm -rf eg_merchant_services
+											'''
+				                     }
+				                   }
+				                    stage('Scheduler Services') {
+				                    when { expression { params.EXPLORER } }
+				                      steps {
+							             sh '''
+											cd eg_scheduler_services
+											mvn clean
+											mvn install -Dpackaging.type=jar -U
+											cd ..
+											rm -rf eg_scheduler_services
+											'''
+				                     }
+				                   }
+			                   }
+		                   }
 		              }  
         	     } 
-                 stage('Building OPS repos') {
-                                when { expression { params.OPS } }
-                                steps {
-                                    script {
-                                    
-                                        def mavenCommands = [
-                                            'mvn clean install'
-                                        ]
-                                        springplatformRepos.each { repo ->
-                                            dir(repo) {
-                                                // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                                sh '''
-                                                find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                                '''
-
-                                                // Execute Maven commands
-                                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-                                                    mavenCommands.each { command ->
-                                                        sh """
-                                                        ${command}
-                                                        """
-                                                    }
-                                                    }
-                                            }
-                                        }
-                                    }
-                                }
-                            }   
 /**
   STAGE 5.Doing Patch Checkout of java,php and scheduler
  */  	                        
@@ -549,7 +360,7 @@ pipeline {
 					              skipChangeLog: false]
 		                         }
 	                        }
-	                     }                         
+	                     }  
                     }
                  }
 /**
@@ -557,98 +368,85 @@ pipeline {
  */  
           stage('Create Patch'){
                  parallel{
-                    stage('Creating Services Patch') {
-                            when { expression { params.MARINER } }
-                            steps {
-                                withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                    sh '''
-                                    mkdir -p webapps/ROOT
-                                    mkdir -p webapps/es
-                                    mkdir -p webapps/egCustomerServices
-                                    mkdir -p webapps/eg_portal_services
-
-                                    if [ -d "eg_portal_services" ]; then
-                                        cd eg_portal_services
-                                        mvn clean
-                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                        rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
-                                        rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
-                                        cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
-                                        cd ..
-                                    fi
-
-                                    if [ -d "eg_customer_services" ]; then
-                                        cd eg_customer_services
-                                        mvn clean
-                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                        rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
-                                        rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
-                                        cp -r target/eg_customer_services-partial/* ../webapps/egCustomerServices
-                                        cd ..
-                                    fi
-
-                                    if [ -d "eg_lifeline_services" ]; then
-                                        cd eg_lifeline_services
-                                        mvn clean
-                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                        rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
-                                        rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
-                                        cp -r target/eg_lifeline_services-partial/* ../webapps/ROOT
-                                        cd ..
-                                    fi
-
-                                    if [ -d "eg_merchant_services" ]; then
-                                        cd eg_merchant_services
-                                        mvn clean
-                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                        rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
-                                        rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
-                                        cp -r target/eg_merchant_services-partial/* ../webapps/es
-                                        cd ..
-                                    fi
-
-                                    zip -r webapps.zip webapps
-                                    '''
-                                    sh "mv webapps.zip webapps-${uprNumber}.zip"
-                                }
-                            }
+                    stage('Creating Services Patch'){
+                      when { expression { params.MARINER} }
+                        steps {
+                          sh '''
+                            mkdir webapps
+                            mkdir webapps/ROOT
+			                mkdir webapps/es
+							mkdir webapps/egCustomerServices
+							mkdir webapps/eg_portal_services
+                            if [ -d "eg_portal_services" ]; then
+ 								cd eg_portal_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
+								cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
+							    cd ..
+							fi
+							if [ -d "eg_customer_services" ]; then
+ 								cd eg_customer_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
+								cp -r target/eg_customer_services-partial/* ../webapps/egCustomerServices
+							    cd ..
+							fi
+							if [ -d "eg_lifeline_services" ]; then
+ 								cd eg_lifeline_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
+								cp -r target/eg_lifeline_services-partial/* ../webapps/ROOT
+							    cd ..
+							fi
+							if [ -d "eg_merchant_services" ]; then
+ 								cd eg_merchant_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
+								cp -r target/eg_merchant_services-partial/* ../webapps/es
+							    cd ..
+							fi
+							zip -r webapps.zip webapps
+							'''
+							 sh"zip -r webapps-${uprNumber}.zip webapps"
                         }
-                        
-                        stage('Creating Scheduler Patch') {
-                            when { expression { params.EXPLORER } }
-                            steps {
-                                withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
-                                    sh '''
-                                    if [ ! -d "deliverywebapps" ]; then
-                                        mkdir deliverywebapps
-                                    fi
-                                    mkdir deliverywebapps/eg_scheduler_services
-                                    mkdir deliverywebapps/eg_scheduler
-                                    mkdir deliverywebapps/eg_scheduler/lib
-
-                                    if [ -d "eg_scheduler_services" ]; then
-                                        cd eg_scheduler_services
-                                        mvn clean
-                                        mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-                                        rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
-                                        rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
-                                        cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
-                                        cd ..
-                                    fi
-
-                                    cd eg_scheduler
-                                    mvn clean
-                                    mvn package
-                                    cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
-                                    cd ..
-                                    '''
-                                    sh '''
-                                    cd deliverywebapps
-                                    zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services
-                                    '''
-                                }
-                            }
+                      }
+                      stage('Creating Scheduler Patch'){
+                        when { expression { params.EXPLORER} }
+                        steps {
+                          sh '''
+                             if [ ! -d "deliverywebapps" ]; then
+                              mkdir deliverywebapps
+                            fi
+                          	mkdir deliverywebapps/eg_scheduler_services
+                          	mkdir deliverywebapps/eg_scheduler
+ 							mkdir deliverywebapps/eg_scheduler/lib
+                          	if [ -d "eg_scheduler_services" ]; then
+ 								cd eg_scheduler_services
+								mvn clean
+								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
+								rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
+								rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
+								cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
+							    cd ..
+							fi
+							cd eg_scheduler
+							mvn clean
+							mvn package
+							cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
+							cd ..
+							'''
+							 sh"""cd deliverywebapps
+							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
                         }
+                      }
                       stage('Creating PHP Patch'){
                         when { expression { params.APOLLO} }
                         steps {
@@ -663,18 +461,6 @@ pipeline {
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
                       }
-                      stage('Creating PHP Patch Or Angular Patch') {
-                        when { expression { params.APOLLOANGULAR } }
-
-                        steps {
-                        script {                           
-                                sh '''
-                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-                                '''
-                                sh "zip -r html-${uprNumber}.zip html/*"                            
-                        }
-                        }
-                     }
                     }
                  }
 /**
@@ -686,14 +472,14 @@ pipeline {
                     stage('MARINER 1'){
                       when { expression { params.MARINER} }
                         steps {
-  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
   				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
   				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
   				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
   				        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
   				        useWorkspaceInPromotion: false, verbose: false)])
   				         
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
                         transfers: [sshTransfer(cleanRemote: false, excludes: '',
                         execCommand: """cd /home/devops
 					    sudo unzip -o webapps-${uprNumber}.zip
@@ -728,14 +514,14 @@ pipeline {
                         when { expression { params.EXPLORER} }
                         steps {
 				          
-				            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
 				            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 				            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 				            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
 				            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
 				            useWorkspaceInPromotion: false, verbose: true)])
 					          
-		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 		            		execCommand: """cd /home/devops
 							sudo unzip -o delivery_webapps-${uprNumber}.zip
 							if [ -d 'eg_scheduler_services' ]; then
@@ -752,7 +538,7 @@ pipeline {
 							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 							verbose: false)])
 					   
-					        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
 					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 							execCommand: '''cd /var/www/html/shfiles
 							sudo ./newkillSchedularProcess.sh
@@ -770,16 +556,16 @@ pipeline {
 					       }
                       }
                       stage('APOLLO 1'){
-                         when { expression { params.APOLLO} }
+                        when { expression { params.APOLLO} }
 	                        steps {
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
 	                        removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
 	                        useWorkspaceInPromotion: false, verbose: false)])
 	                        
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	                        execCommand: """cd /home/devops
 							sudo rm -rf  /var/www/html/eg_yii2_framework_v2
@@ -793,70 +579,6 @@ pipeline {
 							verbose: true)])
                           }
                        }
-                     stage('APOLLO ANGULAR') {
-                         when { 
-                            expression { params.APOLLOANGULAR } 
-                         }
-                            steps {
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '', execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '',
-                            sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false, verbose: true)])
-
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: """
-                                cd /home/devops
-                                cd /var/www/html
-                                sudo rm -rf customer
-                                sudo rm -rf wallet
-                                cd /home/devops
-                                sudo unzip -o html-${uprNumber}.zip -d /var/www/
-                                sudo chmod -R 777 /var/www/html/customer/
-                                sudo chmod -R 777 /var/www/html/wallet/
-                                sudo rm -rf /home/devops/html-${uprNumber}.zip
-                            """,
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-                            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-                            removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-                            useWorkspaceInPromotion: false, verbose: true)])
-                            }
-                }
-                stage('OPS')
-                       {
-                        when { expression { params.OPS } }
-                            steps {
-                                sshPublisher(
-                                    publishers: [
-                                        sshPublisherDesc(
-                                            configName: 'TEST_SERVER',
-                                            transfers: [
-                                                sshTransfer(
-                                                    cleanRemote: false,
-                                                    excludes: '',
-                                                    execCommand: '',
-                                                    execTimeout: 0,
-                                                    flatten: false,
-                                                    makeEmptyDirs: false,
-                                                    noDefaultExcludes: false,
-                                                    patternSeparator: '[, ]+',
-                                                    remoteDirectory: '/home/devops',
-                                                    remoteDirectorySDF: false,
-                                                    removePrefix: 'processing_system/target',
-                                                    sourceFiles: 'processing_system/target/ops.jar'
-                                                ),
-                                            ],
-                                            usePromotionTimestamp: false,
-                                            useWorkspaceInPromotion: false,
-                                            verbose: true
-                                        )
-                                    ]
-                                )
-                            }
-                       }
                     }
                }
 /**
@@ -866,7 +588,7 @@ pipeline {
 		//  {
 		//   when { expression { params.APOLLO} }
         //    steps {
-        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
         // 	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
         // 	 execCommand: '''cd /home/devops
 		// 			if [ ! -d "common" ]; then
@@ -948,9 +670,7 @@ pipeline {
 			// 	                }
 			// 	              }
 			// 	      } 
-
-             }
-              
+              }  
          	post {
 		         success {
 		                    script{
@@ -975,25 +695,25 @@ pipeline {
  */
 
 
- if(buildStatus == "SUCCESS")
- {
-   subject = "UPR ${uprNumber} SUCCESSFULLY DEPLOYED ON ${servers}";
-    env.content = "UPR ${uprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
- }
- else if(buildStatus == "UNSTABLE")
- {
-    subject = "UPR ${uprNumber} DEPLOYED ON ${servers} IS UNSTABLE";
-	env.content = "UPR ${uprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
- 	attachment = true;
- } 
- else
- {
-    subject = "UPR ${uprNumber} FAILED TO DEPLOY ON ${servers}";
-	env.content = "UPR ${uprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
- 	attachment = true;
- } 
+//  if(buildStatus == "SUCCESS")
+//  {
+//    subject = "UPR ${uprNumber} SUCCESSFULLY DEPLOYED ON ${servers}";
+//     env.content = "UPR ${uprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
+//  }
+//  else if(buildStatus == "UNSTABLE")
+//  {
+//     subject = "UPR ${uprNumber} DEPLOYED ON ${servers} IS UNSTABLE";
+// 	env.content = "UPR ${uprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+//  	attachment = true;
+//  } 
+//  else
+//  {
+//     subject = "UPR ${uprNumber} FAILED TO DEPLOY ON ${servers}";
+// 	env.content = "UPR ${uprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+//  	attachment = true;
+//  } 
  
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
  
  
          
