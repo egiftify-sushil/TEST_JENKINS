@@ -4,7 +4,7 @@ GITURL is present in environments
 STAGE 1:- Deleting pipeline workspace
 STAGE 2:-Doing Java  Checkout (JAVA , PHP)
 STAGE 3:-Doing Java Repos Checkout From Git (SPRING)
-STAGE 4.Running Maven Build on Services cloned from git
+STAGE 4.Running Maven Build on Services cloned from git and also angular
 STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 STAGE 6.Running Maven Build on Services
 STAGE 7.Creating Patch (Running maven build,php composer and code packaging)
@@ -274,7 +274,7 @@ pipeline {
         }
 
 /**
-  STAGE 6.Running Maven Build on Services and Running Node build in angular services
+  STAGE 6.Running Maven Build on Services 
 */
 
         stage('Building legacy services') {
