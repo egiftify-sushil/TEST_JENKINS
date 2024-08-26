@@ -222,46 +222,44 @@ pipeline {
 			               }
 	                    }
                      }
-					stage('Code checkout for global meta and jersey object') {
-						parallel {
-							stage('Common Repos Checkout (Git)') {
-								when { expression { params.JAVA_RELEASE } }
-								steps {
-									script {
-										withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-											springcommonRepos.each { repo ->
-												dir(repo) {
-													checkout([
-														$class: 'GitSCM',
-														branches: [[name: "${gitbranch}"]],
-														userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
-													)
-												}
-											}
-										}
-									}
-								}
-							}
-							stage('OPS checkout ') {
-								when { expression { params.OPS_RELEASE } }
-								steps {
-										script {
-										withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-											springplatformRepos.each { repo ->
-												dir(repo) {
-													checkout([
-													$class: 'GitSCM',
-													branches: [[name: "${gitbranch}"]],
-													userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
-												])
-												}
-											}
+					
+					stage('Common Repos Checkout (Git)') {
+						when { expression { params.JAVA_RELEASE } }
+						steps {
+							script {
+								withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+									springcommonRepos.each { repo ->
+										dir(repo) {
+											checkout([
+												$class: 'GitSCM',
+												branches: [[name: "${gitbranch}"]],
+												userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+											)
 										}
 									}
 								}
 							}
 						}
 					}
+					stage('OPS checkout ') {
+						when { expression { params.OPS_RELEASE } }
+						steps {
+								script {
+								withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+									springplatformRepos.each { repo ->
+										dir(repo) {
+											checkout([
+											$class: 'GitSCM',
+											branches: [[name: "${gitbranch}"]],
+											userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+										])
+										}
+									}
+								}
+							}
+						}
+					}
+						
 
 					stage('Building global meta and jersey object') {
 					parallel {
