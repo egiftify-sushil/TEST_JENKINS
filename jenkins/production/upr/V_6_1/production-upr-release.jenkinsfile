@@ -1,7 +1,7 @@
 /**
 THiS FILE UPLOADs CODE ON MARINER 1, APOLLO 1 & EXPLORER
 
-UPR RELEASE Pipeline for mariner 1 and Apollo1.
+UPR RELEASE Pipeline for mariner 1 and TEST_SERVER.
 We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
 There are 9 main stages involved in releasing the upr
 STAGE 1:-  Verifying upr param and deleting pipeline workspace
@@ -152,7 +152,7 @@ pipeline {
     //     when { expression { params.MARINER } }
     //        steps {
                  
-	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	// 	          execCommand: """cd /var/devops/backups
 	// 				sudo rm -rf webapps*
@@ -182,7 +182,7 @@ pipeline {
     //         stage('APOLLO 1'){
     //         when { expression { params.APOLLO } }
     //          steps {
-	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
+	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
 	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	// 	           execCommand: """cd /var/devops/backups
 	// 				sudo rm -rf html*
@@ -633,14 +633,14 @@ pipeline {
                     stage('MARINER 1'){
                       when { expression { params.MARINER} }
                         steps {
-  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
   				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
   				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
   				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
   				        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
   				        useWorkspaceInPromotion: false, verbose: false)])
   				         
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
                         transfers: [sshTransfer(cleanRemote: false, excludes: '',
                         execCommand: """cd /home/devops
 					    sudo unzip -o webapps-${uprNumber}.zip
@@ -675,14 +675,14 @@ pipeline {
                         when { expression { params.EXPLORER} }
                         steps {
 				          
-				            sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 				            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 				            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 				            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
 				            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
 				            useWorkspaceInPromotion: false, verbose: true)])
 					          
-		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 		            		execCommand: """cd /home/devops
 							sudo unzip -o delivery_webapps-${uprNumber}.zip
 							if [ -d 'eg_scheduler_services' ]; then
@@ -719,14 +719,14 @@ pipeline {
                       stage('APOLLO 1'){
                         when { expression { params.APOLLO} }
 	                        steps {
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
 	                        removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
 	                        useWorkspaceInPromotion: false, verbose: false)])
 	                        
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	                        execCommand: """cd /home/devops
 							sudo rm -rf  /var/www/html/eg_yii2_framework_v2
@@ -803,7 +803,7 @@ pipeline {
 		//  {
 		//   when { expression { params.APOLLO} }
         //    steps {
-        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
         // 	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
         // 	 execCommand: '''cd /home/devops
 		// 			if [ ! -d "common" ]; then
