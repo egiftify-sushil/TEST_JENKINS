@@ -430,15 +430,17 @@ pipeline {
 						
 						 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 					     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						 execCommand: '''cd /var/www/html/shfiles
-                                        . killSchedularProcess.sh
-                                        cd /opt/tomcat9/bin       
-                                        . shutdown.sh 2>/dev/null
-                                        sleep 10
-                                        . startup.sh          
-                                        sleep 15
-                                        cd /var/www/html/shfiles
-                                        . schedularProcess.sh
+						 execCommand: '''
+                            cd /var/www/html/shfiles
+                            sudo ./killSchedularProcess.sh
+                            sudo ./shutdown.sh 
+                            sleep 15
+                            sudo systemctl start tomcat.service
+                            sleep 15
+                            cd /var/www/html/shfiles
+                            . schedularProcess.sh
+
+
                                         ''',
 						 execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 						 patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
