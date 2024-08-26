@@ -324,32 +324,7 @@ pipeline {
 							}
 						}
 					} 
-					 stage('Building Angular eg_customer_ang_v1') {
-						when {
-							expression { params.APOLLOANGULAR }
-						}
-						steps {
-							script {
-								withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-									sh '''
-									cd angular/eg_customer_ang_v1
-
-									# Install project dependencies                                   
-									npm install
-
-									# Build the project
-									ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-									ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-									# Create a zip of the entire eg_customer_ang_v1 directory
-									cd ..
-									cd angular/
-									zip -r eg_customer_ang_v1.zip eg_customer_ang_v1/
-									'''
-								}
-							}
-						}
-					}
+					 
 		           stage('Build Services') {
 			               parallel {
 				              		 stage('Portal Services') {
@@ -513,7 +488,32 @@ pipeline {
  */  
           stage('Create Patch'){
                  parallel{
-					
+					stage('Building Angular eg_customer_ang_v1') {
+						when {
+							expression { params.APOLLOANGULAR }
+						}
+						steps {
+							script {
+								withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+									sh '''
+									cd angular/eg_customer_ang_v1
+
+									# Install project dependencies                                   
+									npm install
+
+									# Build the project
+									ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+									ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+									# Create a zip of the entire eg_customer_ang_v1 directory
+									cd ..
+									cd angular/
+									zip -r eg_customer_ang_v1.zip eg_customer_ang_v1/
+									'''
+								}
+							}
+						}
+					}
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
