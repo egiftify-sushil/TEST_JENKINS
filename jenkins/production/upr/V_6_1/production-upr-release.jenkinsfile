@@ -343,6 +343,7 @@ pipeline {
 
 									# Create a zip of the entire eg_customer_ang_v1 directory
 									cd ..
+									cd angular/
 									zip -r eg_customer_ang_v1.zip eg_customer_ang_v1/
 									'''
 								}
