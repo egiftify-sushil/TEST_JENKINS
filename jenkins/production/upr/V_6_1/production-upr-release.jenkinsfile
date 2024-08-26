@@ -566,40 +566,34 @@ pipeline {
 							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
                         }
                       }
-					  stage('Building Angular eg_customer_ang_v1 ') {
-							when {
-								expression { params.APOLLOANGULAR }
-							}
-							steps {
-								script {
-									withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-										sh '''
-										cd angular/eg_customer_ang_v1
+					  stage('Building Angular eg_customer_ang_v1') {
+						when {
+							expression { params.APOLLOANGULAR }
+						}
+						steps {
+							script {
+								withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+									sh '''
+									cd angular/eg_customer_ang_v1
 
-										# Install project dependencies                                   
-											npm install
+									# Install project dependencies                                   
+									npm install
 
-										# Build the project
-											ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-											ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+									# Build the project
+									ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+									ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
 
-										# Check if html directory exists and move the folders accordingly
-											if [ -d "../../html" ]; then
-											cp -r dist/customer ../../html/
-											cp -r dist/wallet ../../html/
-											else
-											mkdir -p ../../html
-											cp -r dist/customer ../../html/
-											cp -r dist/wallet ../../html/
-											fi
-
-										'''
-									}
+									# Create a zip of the entire eg_customer_ang_v1 directory
+									cd ..
+									zip -r eg_customer_ang_v1.zip eg_customer_ang_v1/
+									'''
 								}
 							}
 						}
+					}
+
                       stage('Creating PHP Patch'){
-                         when { expression { params.APOLLO || params.APOLLOANGULAR } }
+                         when { expression { params.APOLLO } }
                         steps {
                           sh '''
 							cd html
@@ -731,11 +725,38 @@ pipeline {
 							verbose: true)])
                           }
                        }
+					    stage('APOLLO ANGULAR')
+                       {
+                        when { expression { params.OPS } }
+                        steps {
+                            
+							sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            cd /home/devops
+						    sudo rm -rf eg_customer_ang_v1.zip
+                            ''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "eg_customer_ang_v1.zip")],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                       }
+                       }
 					   stage('OPS')
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
+                           
 							sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
@@ -747,6 +768,7 @@ pipeline {
                             remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
+							sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',
