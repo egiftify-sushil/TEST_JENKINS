@@ -362,10 +362,6 @@ pipeline {
                             springcommonRepos.each { repo ->
                                 dir(repo) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
                                     // Execute Maven commands
                                     withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
@@ -404,11 +400,7 @@ pipeline {
                             ]
                             springplatformRepos.each { repo ->
                                 dir(repo) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
                                     // Execute Maven commands
                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->

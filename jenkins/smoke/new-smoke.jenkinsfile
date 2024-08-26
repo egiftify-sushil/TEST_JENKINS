@@ -421,6 +421,7 @@ pipeline {
 						sudo rm -rf  eg_scheduler/lib/*
 						cd /home/devops
 						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+                        sudo chmod -R 777 /var/lib/tomcat9/webapps
 						sudo rm -rf /home/devops/webapps.zip''', 
 						execTimeout: 0, 
 						flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
