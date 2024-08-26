@@ -224,24 +224,7 @@ pipeline {
                  }
 				 
 						
-						stage('OPS checkout ') {
-							when { expression { params.OPS} }
-							steps {
-									script {
-									withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-										springplatformRepos.each { repo ->
-											dir(repo) {
-												checkout([
-												$class: 'GitSCM',
-												branches: [[name: "${gitbranch}"]],
-												userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
-											])
-											}
-										}
-									}
-								}
-							}
-						}
+						
 					
 		          stage('Build  Platform') {
 		             when { expression { params.MARINER || params.EXPLORER } }
@@ -264,29 +247,7 @@ pipeline {
 										'''
 			                    } 
 		            }
-					stage('Building OPS Repos') {
-                     when { expression { params.OPS } }
-						steps {
-							script {                            
-								def mavenCommands = [
-									'mvn clean install'
-								]
-								springplatformRepos.each { repo ->
-									dir(repo) {
-										// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
-										// Execute Maven commands
-									withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-										mavenCommands.each { command ->
-										sh """
-										${command}
-										"""
-										}
-										}
-									}
-								}
-							}
-						}
-					} 
+					
 					 
 		           stage('Build Services') {
 			               parallel {
