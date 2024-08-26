@@ -407,43 +407,7 @@ pipeline {
 	                     }  
                     }
                  }
-				 stage('Building Angular eg_customer_ang_v1') {
-					when {
-						expression { params.APOLLOANGULAR }
-					}
-					steps {
-						script {
-							withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-								sh '''
-								cd angular/eg_customer_ang_v1
-
-								# Install project dependencies                                   
-								npm install
-
-								# Build the project
-								ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-								ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-								# Move the customer and wallet folders out of eg_customer_ang_v1
-								mv dist/customer ../customer
-								mv dist/wallet ../wallet
-
-								# Navigate back to the angular directory
-								cd ..
-
-								# Remove the eg_customer_ang_v1 directory
-								rm -rf eg_customer_ang_v1
-
-								# Create a zip file containing the customer and wallet directories
-								zip -r angular_build.zip customer wallet
-
-								# Optionally, clean up the moved directories if they are no longer needed
-								# rm -rf customer wallet
-								'''
-							}
-						}
-					}
-				}
+				
 /**
    STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
  */  
@@ -549,6 +513,44 @@ pipeline {
 					
                     }
                  }
+
+				  stage('Building Angular eg_customer_ang_v1') {
+					when {
+						expression { params.APOLLOANGULAR }
+					}
+					steps {
+						script {
+							withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+								sh '''
+								cd angular/eg_customer_ang_v1
+
+								# Install project dependencies                                   
+								npm install
+
+								# Build the project
+								ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+								ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+								# Move the customer and wallet folders out of eg_customer_ang_v1
+								mv dist/customer ../customer
+								mv dist/wallet ../wallet
+
+								# Navigate back to the angular directory
+								cd ..
+
+								# Remove the eg_customer_ang_v1 directory
+								rm -rf eg_customer_ang_v1
+
+								# Create a zip file containing the customer and wallet directories
+								zip -r angular_build.zip customer wallet
+
+								# Optionally, clean up the moved directories if they are no longer needed
+								# rm -rf customer wallet
+								'''
+							}
+						}
+					}
+				}
 /**
  STAGE 7. Deploying Patch on servers with the help of sshPublisher plugin
 */ 
