@@ -301,6 +301,29 @@ pipeline {
                         }
 			                    } 
 		            }
+					stage('Building OPS Repos') {
+                     when { expression { params.OPS } }
+						steps {
+							script {                            
+								def mavenCommands = [
+									'mvn clean install'
+								]
+								springplatformRepos.each { repo ->
+									dir(repo) {
+										// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
+										// Execute Maven commands
+									withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+										mavenCommands.each { command ->
+										sh """
+										${command}
+										"""
+										}
+										}
+									}
+								}
+							}
+						}
+					} 
 		           stage('Build Services') {
 			               parallel {
 				              		 stage('Portal Services') {
@@ -464,29 +487,7 @@ pipeline {
  */  
           stage('Create Patch'){
                  parallel{
-					stage('Building Platform Repos') {
-                     when { expression { params.OPS } }
-						steps {
-							script {                            
-								def mavenCommands = [
-									'mvn clean install'
-								]
-								springplatformRepos.each { repo ->
-									dir(repo) {
-										// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
-										// Execute Maven commands
-									withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-										mavenCommands.each { command ->
-										sh """
-										${command}
-										"""
-										}
-										}
-									}
-								}
-							}
-						}
-					} 
+					
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
@@ -601,7 +602,7 @@ pipeline {
 							composer install
 							cd ..
 							cd ..
-							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+						    find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
 							'''
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
