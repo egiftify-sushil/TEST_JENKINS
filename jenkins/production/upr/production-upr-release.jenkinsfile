@@ -58,11 +58,11 @@ pipeline {
        Params to define which codebase we want to upload 
      */
     parameters {
-        booleanParam(name: "MARINER", defaultValue: false)
-        booleanParam(name: "APOLLO", defaultValue: false)
-        booleanParam(name: "EXPLORER", defaultValue: false)
-		booleanParam(name: "APOLLOANGULAR", defaultValue: false)
-		booleanParam(name: 'OPS', defaultValue: false)
+        booleanParam(name: "MARINER", defaultValue: true)
+        booleanParam(name: "APOLLO", defaultValue: true)
+        booleanParam(name: "EXPLORER", defaultValue: true)
+		booleanParam(name: "APOLLOANGULAR", defaultValue: true)
+		booleanParam(name: 'OPS', defaultValue: true)
         string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
 		string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
