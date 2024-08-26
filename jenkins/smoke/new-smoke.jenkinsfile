@@ -434,7 +434,7 @@ pipeline {
                                         . killSchedularProcess.sh
                                         cd /opt/tomcat9/bin       
                                         . shutdown.sh 2>/dev/null
-                                        sleep 20
+                                        sleep 10
                                         . startup.sh          
                                         sleep 15
                                         cd /var/www/html/shfiles

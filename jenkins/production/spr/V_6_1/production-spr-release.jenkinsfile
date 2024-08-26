@@ -488,7 +488,9 @@ pipeline {
                         }
                     }
                 }
-                stage('Building Yii2 Framework') {
+               stage('Building Yii2 Framework and Angular Services'){
+                parallel{
+                     stage('Building Yii2 Framework ') {
                     when { expression { params.APOLLO } }
                     steps {
                         sh''' 
@@ -530,6 +532,8 @@ pipeline {
                         }
                     }
                 }
+                }
+               }
 /**
    STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
 */
