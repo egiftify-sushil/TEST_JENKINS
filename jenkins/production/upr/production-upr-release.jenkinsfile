@@ -43,7 +43,7 @@ pipeline {
      agent {
              node {
 		            label ''
-		            customWorkspace '/var/devops/upr/'
+		            customWorkspace '/var/devops/upr_testing/'
          		 }
           }
     /**
