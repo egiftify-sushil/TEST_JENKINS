@@ -260,7 +260,7 @@ pipeline {
 							}
 						}
 					
-		         stage('Build  Platform') {
+		         stage('Building Platform repos') {
 		             when { expression { params.MARINER || params.EXPLORER } }
 			               steps{
 			                      script {
@@ -737,7 +737,7 @@ pipeline {
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
                             cd /home/devops
-						    sudo rm -rf eg_customer_ang_v1.zip
+						    sudo rm -rf angular/eg_customer_ang_v1.zip
                             ''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
@@ -750,7 +750,7 @@ pipeline {
                             execCommand: '',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "eg_customer_ang_v1.zip")],
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "angular/eg_customer_ang_v1.zip")],
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
                        }
