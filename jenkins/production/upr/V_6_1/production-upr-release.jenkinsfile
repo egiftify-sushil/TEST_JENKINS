@@ -221,7 +221,7 @@ pipeline {
 				              skipChangeLog: false]
 			               }
 	                    }
-                 }
+                     }
 					stage('Code checkout for global meta and jersey object') {
 						parallel {
 							stage('Common Repos Checkout (Git)') {
