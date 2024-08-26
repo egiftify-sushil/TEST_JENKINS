@@ -505,10 +505,15 @@ pipeline {
 									ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
 									ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
 
-									# Create a zip of the entire eg_customer_ang_v1 directory
-									cd ..
-									cd angular/
-									zip -r eg_customer_ang_v1.zip eg_customer_ang_v1/
+									# Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     else
+                                     mkdir -p ../../html
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     fi
 									'''
 								}
 							}
@@ -595,7 +600,7 @@ pipeline {
                       }
 					 
 
-                      stage('Creating PHP Patch'){
+                      stage('Running Composer Install in Yii2 Framework'){
                          when { expression { params.APOLLO } }
                         steps {
                           sh '''
@@ -608,7 +613,20 @@ pipeline {
 							'''
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
-                      }					 
+                      }		
+					 		
+					  stage('Creating PHP Patch Or Angular Patch') {
+                      when { expression { params.APOLLO || params.APOLLOANGULAR } }
+
+                        steps {
+                        script {                           
+                                sh '''
+                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                '''
+                               sh"zip -r html-${uprNumber}.zip html/*"	                         
+                        }
+                    }
+                }	 
 					
                     }
                  }
