@@ -9,7 +9,7 @@ STAGE 2:-  Removing instance from taget groups.(MARINER 1 & APOLLO 1) {Parallel}
  Taking backup of old codes on servers in /var/devops/backups/{codebase}-sprNumber.zip. {Parallel}
 STAGE 3:-  Code checkout from SPR branch (all selected projects) using CVSSCM plugin configured on the jenkins. {Parallel}
 STAGE 4:-  Code checkout from Git (6.1.0 Branch)
-STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework {Parallel}
+STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework {Parallel} and angular
 STAGE 6:-  Creating patch (code packaging). {Parallel}
 STAGE 7:-  Deploying patch on production servers (MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin.{Parallel}
 STAGE 8:-  CDN syncing & invalidating assets using aws CLI.
@@ -344,7 +344,7 @@ pipeline {
         }
 
 /**
-   STAGE 5.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
+   STAGE 5.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework and Angular 
 
  */
                 stage('Building Common Jars') {
@@ -362,10 +362,6 @@ pipeline {
                             springcommonRepos.each { repo ->
                                 dir(repo) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
                                     // Execute Maven commands
                                     withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
@@ -404,11 +400,7 @@ pipeline {
                             ]
                             springplatformRepos.each { repo ->
                                 dir(repo) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
                                     // Execute Maven commands
                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                                     mavenCommands.each { command ->
@@ -488,7 +480,9 @@ pipeline {
                         }
                     }
                 }
-                stage('Building Yii2 Framework') {
+               stage('Building Yii2 Framework and Angular Services'){
+                parallel{
+                     stage('Building Yii2 Framework ') {
                     when { expression { params.APOLLO } }
                     steps {
                         sh''' 
@@ -530,6 +524,8 @@ pipeline {
                         }
                     }
                 }
+                }
+               }
 /**
    STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
 */
@@ -751,6 +747,18 @@ pipeline {
                         when { expression { params.OPS } }
                         steps {
                             sh "mv processing_system/target/ops.jar processing_system/target/ops-${sprNumber}.jar"
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            cd /home/devops
+						    sudo rm -rf processing_system
+                            ''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',

@@ -4,7 +4,7 @@ GITURL is present in environments
 STAGE 1:- Deleting pipeline workspace
 STAGE 2:-Doing Java  Checkout (JAVA , PHP)
 STAGE 3:-Doing Java Repos Checkout From Git (SPRING)
-STAGE 4.Running Maven Build on Services cloned from git
+STAGE 4.Running Maven Build on Services cloned from git and also angular
 STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 STAGE 6.Running Maven Build on Services
 STAGE 7.Creating Patch (Running maven build,php composer and code packaging)
@@ -274,7 +274,7 @@ pipeline {
         }
 
 /**
-  STAGE 6.Running Maven Build on Services and Running Node build in angular services
+  STAGE 6.Running Maven Build on Services 
 */
 
         stage('Building legacy services') {
@@ -421,6 +421,7 @@ pipeline {
 						sudo rm -rf  eg_scheduler/lib/*
 						cd /home/devops
 						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+                        sudo chmod -R 777 /var/lib/tomcat9/webapps
 						sudo rm -rf /home/devops/webapps.zip''', 
 						execTimeout: 0, 
 						flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
@@ -430,15 +431,18 @@ pipeline {
 						
 						 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 					     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						 execCommand: '''cd /var/www/html/shfiles
-                                        . killSchedularProcess.sh
-                                        cd /opt/tomcat9/bin       
-                                        . shutdown.sh 2>/dev/null
-                                        sleep 20
-                                        . startup.sh          
-                                        sleep 15
-                                        cd /var/www/html/shfiles
-                                        . schedularProcess.sh
+						 execCommand: '''
+                            cd /var/www/html/shfiles
+                            . killSchedularProcess.sh
+                            cd /opt/tomcat/bin
+                            sudo ./shutdown.sh 
+                            sleep 15
+                            sudo systemctl start tomcat.service
+                            sleep 15
+                            cd /var/www/html/shfiles
+                            . schedularProcess.sh
+
+
                                         ''',
 						 execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 						 patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
@@ -467,8 +471,9 @@ pipeline {
                                 cd /home/devops
                                 sudo unzip -o html.zip -d /var/www/
                                 sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                               
-                                ''',
+                              
+							       sudo rm -rf /home/devops/html.zip'''
+                                ,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+',
                             remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
@@ -480,7 +485,17 @@ pipeline {
               stage('OPS') 
               {
                 when { expression { params.OPS_RELEASE } }
-                steps {
+                steps {sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            cd /home/devops
+						    sudo rm -rf processing_system
+                            ''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
                    sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '',
