@@ -489,36 +489,43 @@ pipeline {
           stage('Create Patch'){
                  parallel{
 					stage('Building Angular eg_customer_ang_v1') {
-						when {
-							expression { params.APOLLOANGULAR }
-						}
-						steps {
-							script {
-								withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-									sh '''
-									cd angular/eg_customer_ang_v1
+					when {
+						expression { params.APOLLOANGULAR }
+					}
+					steps {
+						script {
+							withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+								sh '''
+								cd angular/eg_customer_ang_v1
 
-									# Install project dependencies                                   
-									npm install
+								# Install project dependencies                                   
+								npm install
 
-									# Build the project
-									ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-									ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+								# Build the project
+								ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+								ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
 
-									# Check if html directory exists and move the folders accordingly
-                                     if [ -d "../../html" ]; then
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     else
-                                     mkdir -p ../../html
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     fi
-									'''
-								}
+								# Move the customer and wallet folders out of eg_customer_ang_v1
+								mv dist/customer ../customer
+								mv dist/wallet ../wallet
+
+								# Navigate back to the angular directory
+								cd ..
+
+								# Remove the eg_customer_ang_v1 directory
+								rm -rf eg_customer_ang_v1
+
+								# Create a zip file containing the customer and wallet directories
+								zip -r angular_build.zip customer wallet
+
+								# Optionally, clean up the moved directories if they are no longer needed
+								# rm -rf customer wallet
+								'''
 							}
 						}
 					}
+				}
+
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
@@ -600,7 +607,7 @@ pipeline {
                       }
 					 
 
-                      stage('Running Composer Install in Yii2 Framework'){
+                      stage('Creating PHP Patch'){
                          when { expression { params.APOLLO } }
                         steps {
                           sh '''
@@ -613,20 +620,7 @@ pipeline {
 							'''
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
-                      }		
-					 		
-					  stage('Creating PHP Patch Or Angular Patch') {
-                      when { expression { params.APOLLO || params.APOLLOANGULAR } }
-
-                        steps {
-                        script {                           
-                                sh '''
-                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-                                '''
-                               sh"zip -r html-${uprNumber}.zip html/*"	                         
-                        }
-                    }
-                }	 
+                      }					 
 					
                     }
                  }
@@ -723,7 +717,7 @@ pipeline {
 					       }
                       }
                       stage('APOLLO 1'){
-                        when { expression { params.APOLLO || params.APOLLOANGULAR } }
+                        when { expression { params.APOLLO} }
 	                        steps {
 	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
@@ -746,7 +740,33 @@ pipeline {
 							verbose: true)])
                           }
                        }
-					    
+					//     stage('APOLLO ANGULAR')
+                    //    {
+                    //     when { expression { params.OPS } }
+                    //     steps {
+                            
+					// 		sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                    //         execCommand: '''
+                    //         cd /home/devops
+					// 	    sudo rm -rf angular/eg_customer_ang_v1.zip
+                    //         ''',
+                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                    //         verbose: true)])
+                    //     //    deploying zip file
+                    //         sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                    //         execCommand: '',
+                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: "angular/eg_customer_ang_v1.zip")],
+                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                    //         verbose: true)])
+                    //    }
+                    //    }
 					   stage('OPS')
                        {
                         when { expression { params.OPS } }
