@@ -1,7 +1,7 @@
 /**
 THiS FILE UPLOADs CODE ON MARINER 1, APOLLO 1 & EXPLORER
 
-UPR RELEASE Pipeline for mariner 1 and TEST_SERVER.
+UPR RELEASE Pipeline for mariner 1 and Apollo1.
 We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
 There are 9 main stages involved in releasing the upr
 STAGE 1:-  Verifying upr param and deleting pipeline workspace
@@ -19,34 +19,52 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
+def gitbranch = ''
 def branchname = ""
 def uprNumber = "";
 def servers = "";
 def buildStatus = "SUCCESS";
 def attachment = false;
+// common jars
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+
+]
 pipeline {
 
      /** Defining workspace for the node **/
      agent {
              node {
 		            label ''
-		            customWorkspace '/var/devops/upr/'
+		            customWorkspace '/var/devops/upr_testing/'
          		 }
           }
     /**
      Setting jdk for java build
     */
      tools {
-       jdk "jdk14"
-     }
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
      /**
        Params to define which codebase we want to upload 
      */
     parameters {
-        booleanParam(name: "MARINER", defaultValue: false)
-        booleanParam(name: "APOLLO", defaultValue: false)
-        booleanParam(name: "EXPLORER", defaultValue: false)
+        booleanParam(name: "MARINER", defaultValue: true)
+        booleanParam(name: "APOLLO", defaultValue: true)
+        booleanParam(name: "EXPLORER", defaultValue: true)
+		booleanParam(name: "APOLLOANGULAR", defaultValue: true)
+		booleanParam(name: 'OPS', defaultValue: true)
         string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
+		string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
     }
     stages {        
@@ -61,13 +79,19 @@ pipeline {
 					         error('UPR NUMBER Not Defined…')
 					     }else{
 					          uprNumber = params.UPR_NUMBER;
+							  gitbranch = params.GIT_BRANCH_NAME
 					          branchname = params.BRANCH_NAME;
 					          if(params.MARINER)
-					            servers = "MARINER 1 ";
+					            servers = "TEST_SERVER";
 					          if(params.APOLLO)  
-					            servers = servers+"APOLLO 1 ";
+					            servers = servers+"TEST_SERVER";
 					          if(params.EXPLORER)
-					            servers = servers+"EXPLORER";
+					            servers = servers+"TEST_SERVER";
+							  if (params.APOLLOANGULAR) 
+                                servers = 'TEST_SERVER'
+                              if (params.OPS) 
+                                servers = 'TEST_SERVER'
+                              
 					          cleanWs()
 					          currentBuild.description = "UPR "+params.UPR_NUMBER
 					     }
@@ -128,7 +152,7 @@ pipeline {
     //     when { expression { params.MARINER } }
     //        steps {
                  
-	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
 	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	// 	          execCommand: """cd /var/devops/backups
 	// 				sudo rm -rf webapps*
@@ -143,7 +167,7 @@ pipeline {
     //         stage('EXPLORER'){
     //          when { expression { params.EXPLORER } }
     //            steps {
-	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, 
+	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
 	// 		          excludes: '',
 	// 		          execCommand: """cd /var/devops/backups
 	// 					sudo rm -rf delivery*
@@ -158,7 +182,7 @@ pipeline {
     //         stage('APOLLO 1'){
     //         when { expression { params.APOLLO } }
     //          steps {
-	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
 	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	// 	           execCommand: """cd /var/devops/backups
 	// 				sudo rm -rf html*
@@ -198,25 +222,83 @@ pipeline {
 			               }
 	                    }
                  }
+				 
+						stage('Common Repos Checkout (Git)') {
+							when { expression { params.MARINER ||  params.EXPLORER } }
+							steps {
+								script {
+									withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+										springcommonRepos.each { repo ->
+											dir(repo) {
+												checkout([
+													$class: 'GitSCM',
+													branches: [[name: "${gitbranch}"]],
+													userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+												)
+											}
+										}
+									}
+								}
+							}
+						}
+						stage('OPS checkout ') {
+							when { expression { params.OPS} }
+							steps {
+									script {
+									withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+										springplatformRepos.each { repo ->
+											dir(repo) {
+												checkout([
+												$class: 'GitSCM',
+												branches: [[name: "${gitbranch}"]],
+												userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+											])
+											}
+										}
+									}
+								}
+							}
+						}
+					
 		         stage('Build  Platform') {
 		             when { expression { params.MARINER || params.EXPLORER } }
 			               steps{
-			                      sh '''cd eg_objects
-										mvn clean
-										mvn install -U
-										cd ..
-										cd eg_platform
-										cd platform
-										mvn clean
-										mvn install -U
-										cd ..
-										mvn clean
-										mvn install -U 
-										cd ..
-										cd scheduler_base
-										mvn clean
-										mvn install -U
-										'''
+			                      script {
+                            
+                            // Define Maven commands
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                            ]
+                            // Execute springcommonRepos first
+                            springcommonRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """
+                                    ${command}
+                                    """
+                                    }
+                                    }
+                                }
+                            }
+                            // Define build steps
+                            def buildSteps = [
+                                ['name': 'eg_objects', 'path': 'eg_objects'],
+                                ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                                ['name': 'eg_platform', 'path': 'eg_platform'],
+                                ['name': 'scheduler_base', 'path': 'scheduler_base']
+                            ]
+                            // Execute buildSteps
+                            buildSteps.each { step ->
+                                dir(step.path) {
+                                    sh 'mvn clean'
+                                    sh 'mvn install -U'
+                                }
+                            }
+                        }
 			                    } 
 		            }
 		           stage('Build Services') {
@@ -361,6 +443,20 @@ pipeline {
 		                         }
 	                        }
 	                     }  
+						stage('ANGULAR Checkout'){
+	                  	when { expression { params.APOLLOANGULAR } }
+		                  steps {
+							      sh 'mkdir -p angular'
+					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+					              modules: [
+					              [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], 
+					              skipChangeLog: false]
+		                         }
+	                        }
+	                     }  
                     }
                  }
 /**
@@ -368,6 +464,29 @@ pipeline {
  */  
           stage('Create Patch'){
                  parallel{
+					stage('Building Platform Repos') {
+                     when { expression { params.OPS } }
+						steps {
+							script {                            
+								def mavenCommands = [
+									'mvn clean install'
+								]
+								springplatformRepos.each { repo ->
+									dir(repo) {
+										// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
+										// Execute Maven commands
+									withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+										mavenCommands.each { command ->
+										sh """
+										${command}
+										"""
+										}
+										}
+									}
+								}
+							}
+						}
+					} 
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
@@ -447,8 +566,40 @@ pipeline {
 							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
                         }
                       }
+					  stage('Building Angular eg_customer_ang_v1 ') {
+							when {
+								expression { params.APOLLOANGULAR }
+							}
+							steps {
+								script {
+									withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+										sh '''
+										cd angular/eg_customer_ang_v1
+
+										# Install project dependencies                                   
+											npm install
+
+										# Build the project
+											ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+											ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+										# Check if html directory exists and move the folders accordingly
+											if [ -d "../../html" ]; then
+											cp -r dist/customer ../../html/
+											cp -r dist/wallet ../../html/
+											else
+											mkdir -p ../../html
+											cp -r dist/customer ../../html/
+											cp -r dist/wallet ../../html/
+											fi
+
+										'''
+									}
+								}
+							}
+						}
                       stage('Creating PHP Patch'){
-                        when { expression { params.APOLLO} }
+                         when { expression { params.APOLLO || params.APOLLOANGULAR } }
                         steps {
                           sh '''
 							cd html
@@ -460,7 +611,8 @@ pipeline {
 							'''
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
-                      }
+                      }					 
+					
                     }
                  }
 /**
@@ -472,14 +624,14 @@ pipeline {
                     stage('MARINER 1'){
                       when { expression { params.MARINER} }
                         steps {
-  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
   				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
   				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
   				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
   				        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
   				        useWorkspaceInPromotion: false, verbose: false)])
   				         
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
                         transfers: [sshTransfer(cleanRemote: false, excludes: '',
                         execCommand: """cd /home/devops
 					    sudo unzip -o webapps-${uprNumber}.zip
@@ -514,14 +666,14 @@ pipeline {
                         when { expression { params.EXPLORER} }
                         steps {
 				          
-				            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
 				            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 				            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 				            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
 				            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
 				            useWorkspaceInPromotion: false, verbose: true)])
 					          
-		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 		            		execCommand: """cd /home/devops
 							sudo unzip -o delivery_webapps-${uprNumber}.zip
 							if [ -d 'eg_scheduler_services' ]; then
@@ -538,7 +690,7 @@ pipeline {
 							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
 							verbose: false)])
 					   
-					        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
 					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 							execCommand: '''cd /var/www/html/shfiles
 							sudo ./newkillSchedularProcess.sh
@@ -558,14 +710,14 @@ pipeline {
                       stage('APOLLO 1'){
                         when { expression { params.APOLLO} }
 	                        steps {
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
 	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
 	                        removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
 	                        useWorkspaceInPromotion: false, verbose: false)])
 	                        
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 	                        execCommand: """cd /home/devops
 							sudo rm -rf  /var/www/html/eg_yii2_framework_v2
@@ -579,6 +731,32 @@ pipeline {
 							verbose: true)])
                           }
                        }
+					   stage('OPS')
+                       {
+                        when { expression { params.OPS } }
+                        steps {
+                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
+							sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            cd /home/devops
+						    sudo rm -rf processing_system
+                            ''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                       }
+                       }
                     }
                }
 /**
@@ -588,7 +766,7 @@ pipeline {
 		//  {
 		//   when { expression { params.APOLLO} }
         //    steps {
-        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
         // 	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
         // 	 execCommand: '''cd /home/devops
 		// 			if [ ! -d "common" ]; then

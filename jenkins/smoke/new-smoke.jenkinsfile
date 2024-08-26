@@ -485,7 +485,8 @@ pipeline {
               stage('OPS') 
               {
                 when { expression { params.OPS_RELEASE } }
-                steps {sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                steps {
+                    sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
                             cd /home/devops
