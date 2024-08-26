@@ -432,7 +432,8 @@ pipeline {
 					     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 						 execCommand: '''
                             cd /var/www/html/shfiles
-                            sudo ./killSchedularProcess.sh
+                            . killSchedularProcess.sh
+                            cd /opt/tomcat/bin
                             sudo ./shutdown.sh 
                             sleep 15
                             sudo systemctl start tomcat.service
@@ -469,8 +470,9 @@ pipeline {
                                 cd /home/devops
                                 sudo unzip -o html.zip -d /var/www/
                                 sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-                               
-                                ''',
+                              
+							       sudo rm -rf /home/devops/html.zip'''
+                                ,
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+',
                             remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
