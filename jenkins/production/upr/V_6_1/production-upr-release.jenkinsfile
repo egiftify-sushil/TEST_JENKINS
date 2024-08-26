@@ -723,7 +723,7 @@ pipeline {
 					       }
                       }
                       stage('APOLLO 1'){
-                        when { expression { params.APOLLO} }
+                        when { expression { params.APOLLO || params.APOLLOANGULAR } }
 	                        steps {
 	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
@@ -746,33 +746,7 @@ pipeline {
 							verbose: true)])
                           }
                        }
-					    stage('APOLLO ANGULAR')
-                       {
-                        when { expression { params.OPS } }
-                        steps {
-                            
-							sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '''
-                            cd /home/devops
-						    sudo rm -rf angular/eg_customer_ang_v1.zip
-                            ''',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
-                        //    deploying zip file
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "angular/eg_customer_ang_v1.zip")],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
-                       }
-                       }
+					    
 					   stage('OPS')
                        {
                         when { expression { params.OPS } }
