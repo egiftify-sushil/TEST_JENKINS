@@ -222,63 +222,129 @@ pipeline {
 			               }
 	                    }
                  }
-				 stage('Common Repos Checkout (Git)') {
-							when { expression { params.MARINER ||  params.EXPLORER } }
-							steps {
-								script {
-									withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-										springcommonRepos.each { repo ->
-											dir(repo) {
-												checkout([
+					stage('Code checkout for global meta and jersey object') {
+						parallel {
+							stage('Common Repos Checkout (Git)') {
+								when { expression { params.JAVA_RELEASE } }
+								steps {
+									script {
+										withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+											springcommonRepos.each { repo ->
+												dir(repo) {
+													checkout([
+														$class: 'GitSCM',
+														branches: [[name: "${gitbranch}"]],
+														userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+													)
+												}
+											}
+										}
+									}
+								}
+							}
+							stage('OPS checkout ') {
+								when { expression { params.OPS_RELEASE } }
+								steps {
+										script {
+										withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+											springplatformRepos.each { repo ->
+												dir(repo) {
+													checkout([
 													$class: 'GitSCM',
 													branches: [[name: "${gitbranch}"]],
-													userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
-												)
+													userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+												])
+												}
 											}
 										}
 									}
 								}
 							}
 						}
-			         stage('Building Platform repos') {
+					}
+
+					stage('Building global meta and jersey object') {
+					parallel {
+						stage('Building Common Spring Jars') {
+							when { expression { params.MARINER || params.EXPLORER } }
+
+							steps {
+								script {
+									
+									def mavenCommands = [
+									'mvn clean install'
+
+									]
+
+									springcommonRepos.each { repo1 ->
+										dir(repo1) {
+											// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+										
+
+											// Execute Maven commands
+											withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+											mavenCommands.each { command ->
+											sh """                                   
+											${command}
+											"""
+											}
+											}
+										}
+									}
+								}
+							}
+						}
+						stage('Building OPS') {
+							when { expression { params.OPS_RELEASE } }
+
+							steps {
+								script {
+									
+									def mavenCommands = [
+										'mvn clean install'
+									]
+
+									springplatformRepos.each { repo1 ->
+										dir(repo1) {
+											// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+										
+
+											// Execute Maven commands
+											withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+											mavenCommands.each { command ->
+											sh """                                   
+											${command}
+											"""
+											}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				} 
+
+
+			        stage('Build  Platform') {
 		             when { expression { params.MARINER || params.EXPLORER } }
 			               steps{
-			                      script {
-                            
-                            // Define Maven commands
-                            def mavenCommands = [
-                            'mvn clean',
-                            'mvn install -U'
-                            ]
-                            // Execute springcommonRepos first
-                            springcommonRepos.each { repo ->
-                                dir(repo) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    // Execute Maven commands
-                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-                                    mavenCommands.each { command ->
-                                    sh """
-                                    ${command}
-                                    """
-                                    }
-                                    }
-                                }
-                            }
-                            // Define build steps
-                            def buildSteps = [
-                                ['name': 'eg_objects', 'path': 'eg_objects'],
-                                ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
-                                ['name': 'eg_platform', 'path': 'eg_platform'],
-                                ['name': 'scheduler_base', 'path': 'scheduler_base']
-                            ]
-                            // Execute buildSteps
-                            buildSteps.each { step ->
-                                dir(step.path) {
-                                    sh 'mvn clean'
-                                    sh 'mvn install -U'
-                                }
-                            }
-                        }
+			                      sh '''cd eg_objects
+										mvn clean
+										mvn install -U
+										cd ..
+										cd eg_platform
+										cd platform
+										mvn clean
+										mvn install -U
+										cd ..
+										mvn clean
+										mvn install -U 
+										cd ..
+										cd scheduler_base
+										mvn clean
+										mvn install -U
+										'''
 			                    } 
 		            }
 		           stage('Build Services') {
