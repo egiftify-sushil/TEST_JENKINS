@@ -1,7 +1,7 @@
 /**
 THiS FILE UPLOADs CODE ON MARINER 1, APOLLO 1 & EXPLORER
 
-UPR RELEASE Pipeline for mariner 1 and TEST_SERVER.
+UPR RELEASE Pipeline for mariner 1 and Apollo1.
 We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
 There are 9 main stages involved in releasing the upr
 STAGE 1:-  Verifying upr param and deleting pipeline workspace
@@ -19,41 +19,27 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
-def gitbranch = ''
 def branchname = ""
 def uprNumber = "";
 def servers = "";
 def buildStatus = "SUCCESS";
 def attachment = false;
-// common jars
-def springcommonRepos = [
-    'global_meta',
-    'jersey_object_library'
-]
-def springplatformRepos = [
-    'sp_dynamo_document',
-    'sp_mysql_application_entity',
-    'object_library',
-    'processing_system'
-
-]
 pipeline {
 
      /** Defining workspace for the node **/
      agent {
              node {
 		            label ''
-		            customWorkspace '/var/devops/upr_testing/'
+		            customWorkspace '/var/devops/upr/'
          		 }
           }
     /**
      Setting jdk for java build
     */
      tools {
-        jdk 'jdk14'
-        jdk 'jdk17'
-        nodejs 'nodejs14'
-    }
+       jdk "jdk14"
+	   jdk "jdk17"
+     }
      /**
        Params to define which codebase we want to upload 
      */
@@ -61,10 +47,7 @@ pipeline {
         booleanParam(name: "MARINER", defaultValue: false)
         booleanParam(name: "APOLLO", defaultValue: false)
         booleanParam(name: "EXPLORER", defaultValue: false)
-		booleanParam(name: "APOLLOANGULAR", defaultValue: false)
-		booleanParam(name: 'OPS', defaultValue: false)
         string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
-		string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
     }
     stages {        
@@ -79,19 +62,13 @@ pipeline {
 					         error('UPR NUMBER Not Defined…')
 					     }else{
 					          uprNumber = params.UPR_NUMBER;
-							  gitbranch = params.GIT_BRANCH_NAME
 					          branchname = params.BRANCH_NAME;
 					          if(params.MARINER)
-					            servers = "TEST_SERVER";
+					            servers = "MARINER 1 ";
 					          if(params.APOLLO)  
-					            servers = servers+"TEST_SERVER";
+					            servers = servers+"APOLLO 1 ";
 					          if(params.EXPLORER)
-					            servers = servers+"TEST_SERVER";
-							  if (params.APOLLOANGULAR) 
-                                servers = 'TEST_SERVER'
-                              if (params.OPS) 
-                                servers = 'TEST_SERVER'
-                              
+					            servers = servers+"EXPLORER";
 					          cleanWs()
 					          currentBuild.description = "UPR "+params.UPR_NUMBER
 					     }
@@ -146,56 +123,56 @@ pipeline {
  STAGE 3. Taking backup of old codes on servers in /var/devops/backups/ dir
           ssh plugin used to excute the ssh  command on all remote servers
 */
-    // stage('Backup'){
-    //  parallel{
-    //    stage('MARINER 1'){
-    //     when { expression { params.MARINER } }
-    //        steps {
+    stage('Backup'){
+     parallel{
+       stage('MARINER 1'){
+        when { expression { params.MARINER } }
+           steps {
                  
-	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	          execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf webapps*
-	// 				cd /var/lib/tomcat9/webapps
-	// 				sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-	// 				noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-	// 				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         } 
-    //         stage('EXPLORER'){
-    //          when { expression { params.EXPLORER } }
-    //            steps {
-	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
-	// 		          excludes: '',
-	// 		          execCommand: """cd /var/devops/backups
-	// 					sudo rm -rf delivery*
-	// 					cd  /opt/tomcat9/webapps
-	// 					sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
-	// 					""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-	// 					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 					useWorkspaceInPromotion: false, verbose: true)])
-	// 		          }
-    //        }
-    //         stage('APOLLO 1'){
-    //         when { expression { params.APOLLO } }
-    //          steps {
-	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	           execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf html*
-	// 			    cd /var/www/html
-	// 				sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-	// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         }  
-    //       }
-    //      } 
+		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+		          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		          execCommand: """cd /var/devops/backups
+					sudo rm -rf webapps*
+					cd /var/lib/tomcat9/webapps
+					sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+					noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+					remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            } 
+            stage('EXPLORER'){
+             when { expression { params.EXPLORER } }
+               steps {
+			          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
+			          excludes: '',
+			          execCommand: """cd /var/devops/backups
+						sudo rm -rf delivery*
+						cd  /opt/tomcat9/webapps
+						sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
+						""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+						removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+						useWorkspaceInPromotion: false, verbose: true)])
+			          }
+           }
+            stage('APOLLO 1'){
+            when { expression { params.APOLLO } }
+             steps {
+		           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
+		           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		           execCommand: """cd /var/devops/backups
+					sudo rm -rf html*
+				    cd /var/www/html
+					sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
+					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+					useWorkspaceInPromotion: false, verbose: true)])
+		          }
+            }  
+          }
+         } 
 /**
  STAGE 4. Doing Checkout of JAVA Main Branch code using CVSSCM plugin configured on the jenkins.
           Main branch code is required to perform the partial builds . Also we are creating jars
@@ -222,11 +199,7 @@ pipeline {
 			               }
 	                    }
                  }
-				 
-						
-						
-					
-		          stage('Build  Platform') {
+		         stage('Build  Platform') {
 		             when { expression { params.MARINER || params.EXPLORER } }
 			               steps{
 			                      sh '''cd eg_objects
@@ -247,8 +220,6 @@ pipeline {
 										'''
 			                    } 
 		            }
-					
-					 
 		           stage('Build Services') {
 			               parallel {
 				              		 stage('Portal Services') {
@@ -391,17 +362,13 @@ pipeline {
 		                         }
 	                        }
 	                     }  
-						
                     }
                  }
-				
 /**
    STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
  */  
           stage('Create Patch'){
                  parallel{
-					
-
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
@@ -481,10 +448,8 @@ pipeline {
 							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
                         }
                       }
-					 
-
                       stage('Creating PHP Patch'){
-                         when { expression { params.APOLLO } }
+                        when { expression { params.APOLLO} }
                         steps {
                           sh '''
 							cd html
@@ -492,282 +457,185 @@ pipeline {
 							composer install
 							cd ..
 							cd ..
-						    find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
 							'''
 							sh"zip -r html-${uprNumber}.zip html/*"	
                         }
-                      }					 
-					
+                      }
                     }
                  }
-
-				//  stage('OPS checkout ') {
-				// 			when { expression { params.OPS} }
-				// 			steps {
-				// 					script {
-				// 					withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-				// 						springplatformRepos.each { repo ->
-				// 							dir(repo) {
-				// 								checkout([
-				// 								$class: 'GitSCM',
-				// 								branches: [[name: "${gitbranch}"]],
-				// 								userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
-				// 							])
-				// 							}
-				// 						}
-				// 					}
-				// 				}
-				// 			}
-				// 		}
-					// stage('Building OPS Repos') {
-                    //  when { expression { params.OPS } }
-					// 	steps {
-					// 		script {                            
-					// 			def mavenCommands = [
-					// 				'mvn clean install'
-					// 			]
-					// 			springplatformRepos.each { repo ->
-					// 				dir(repo) {
-					// 					// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
-					// 					// Execute Maven commands
-					// 				withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-					// 					mavenCommands.each { command ->
-					// 					sh """
-					// 					${command}
-					// 					"""
-					// 					}
-					// 					}
-					// 				}
-					// 			}
-					// 		}
-					// 	}
-					// } 
 /**
  STAGE 7. Deploying Patch on servers with the help of sshPublisher plugin
 */ 
           
-           stage('Deploy Patch'){
-                 parallel{
-                    stage('MARINER 1'){
-                      when { expression { params.MARINER} }
-                        steps {
-  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
-  				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-  				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
-  				        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
-  				        useWorkspaceInPromotion: false, verbose: false)])
+        //    stage('Deploy Patch'){
+        //          parallel{
+        //             stage('MARINER 1'){
+        //               when { expression { params.MARINER} }
+        //                 steps {
+  		// 		        sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+  		// 		        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+  		// 		        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+  		// 		        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+  		// 		        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
+  		// 		        useWorkspaceInPromotion: false, verbose: false)])
   				         
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                        execCommand: """cd /home/devops
-					    sudo unzip -o webapps-${uprNumber}.zip
-					    sudo chmod -R 775 webapps
-					    cd webapps
-						if [ -d 'ROOT' ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/ROOT/WEB-INF/lib/*
-						fi
-						if [ -d 'es' ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/es/WEB-INF/lib/*
-						fi
-						if [ -d 'eg_portal_services' ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
-						fi
-						if [ -d 'egCustomerServices' ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/egCustomerServices/WEB-INF/lib/*
-						fi
-						cd /home/devops
-						sudo unzip -o webapps-${uprNumber}.zip -d /var/lib/tomcat9/
-						cd /opt/tomcat9/bin
-						sudo ./shutdown.sh
-						sleep 5
-						sudo ./startup.sh
-						sleep 15
-						sudo rm -rf /home/devops/webapps*""", execTimeout: 0, flatten: false, 
-						makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-						useWorkspaceInPromotion: false, verbose: true)])
-					   }
-                      }
-                      stage('EXPLORER'){
-                        when { expression { params.EXPLORER} }
-                        steps {
+        //                 sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+        //                 transfers: [sshTransfer(cleanRemote: false, excludes: '',
+        //                 execCommand: """cd /home/devops
+		// 			    sudo unzip -o webapps-${uprNumber}.zip
+		// 			    sudo chmod -R 775 webapps
+		// 			    cd webapps
+		// 				if [ -d 'ROOT' ]; then
+		// 					sudo rm -rf  /var/lib/tomcat9/webapps/ROOT/WEB-INF/lib/*
+		// 				fi
+		// 				if [ -d 'es' ]; then
+		// 					sudo rm -rf  /var/lib/tomcat9/webapps/es/WEB-INF/lib/*
+		// 				fi
+		// 				if [ -d 'eg_portal_services' ]; then
+		// 					sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
+		// 				fi
+		// 				if [ -d 'egCustomerServices' ]; then
+		// 					sudo rm -rf  /var/lib/tomcat9/webapps/egCustomerServices/WEB-INF/lib/*
+		// 				fi
+		// 				cd /home/devops
+		// 				sudo unzip -o webapps-${uprNumber}.zip -d /var/lib/tomcat9/
+		// 				cd /opt/tomcat9/bin
+		// 				sudo ./shutdown.sh
+		// 				sleep 5
+		// 				sudo ./startup.sh
+		// 				sleep 15
+		// 				sudo rm -rf /home/devops/webapps*""", execTimeout: 0, flatten: false, 
+		// 				makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+		// 				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+		// 				useWorkspaceInPromotion: false, verbose: true)])
+		// 			   }
+        //               }
+        //               stage('EXPLORER'){
+        //                 when { expression { params.EXPLORER} }
+        //                 steps {
 				          
-				            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-				            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
-				            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-				            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
-				            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
-				            useWorkspaceInPromotion: false, verbose: true)])
+		// 		            sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
+		// 		            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+		// 		            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+		// 		            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+		// 		            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
+		// 		            useWorkspaceInPromotion: false, verbose: true)])
 					          
-		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-		            		execCommand: """cd /home/devops
-							sudo unzip -o delivery_webapps-${uprNumber}.zip
-							if [ -d 'eg_scheduler_services' ]; then
-						 	 sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
-							fi
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
-							sudo unzip -o delivery_webapps-${uprNumber}.zip -d /var/lib/tomcat9/webapps/
-							sudo rm -rf /home/devops/delivery_webapps-${uprNumber}.zip
-							sudo rm -rf /home/devops/eg*
-							sudo rm -rf /home/devops/delivery_webapps*""", 
-							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-							patternSeparator: '[, ]+', remoteDirectory: '', 
-							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-							verbose: false)])
+		//            		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		//             		execCommand: """cd /home/devops
+		// 					sudo unzip -o delivery_webapps-${uprNumber}.zip
+		// 					if [ -d 'eg_scheduler_services' ]; then
+		// 				 	 sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
+		// 					fi
+		// 					sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
+		// 					sudo unzip -o delivery_webapps-${uprNumber}.zip -d /var/lib/tomcat9/webapps/
+		// 					sudo rm -rf /home/devops/delivery_webapps-${uprNumber}.zip
+		// 					sudo rm -rf /home/devops/eg*
+		// 					sudo rm -rf /home/devops/delivery_webapps*""", 
+		// 					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+		// 					patternSeparator: '[, ]+', remoteDirectory: '', 
+		// 					remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+		// 					usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+		// 					verbose: false)])
 					   
-					        sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
-					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-							execCommand: '''cd /var/www/html/shfiles
-							sudo ./newkillSchedularProcess.sh
-							cd /opt/tomcat9/bin
-							sudo ./shutdown.sh  2>/dev/null
-							sudo sleep 5
-							sudo ./startup.sh
-							sudo sleep 10
-							cd /var/www/html/shfiles
-							sudo ./schedularProcess.sh''', 
-						    execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-						    patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-						    removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-						    useWorkspaceInPromotion: false, verbose: true)])
-					       }
-                      }
-                      stage('APOLLO 1'){
-                        when { expression { params.APOLLO} }
-	                        steps {
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
-	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	                        removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
-	                        useWorkspaceInPromotion: false, verbose: false)])
+		// 			        sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', 
+		// 			        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		// 					execCommand: '''cd /var/www/html/shfiles
+		// 					sudo ./newkillSchedularProcess.sh
+		// 					cd /opt/tomcat9/bin
+		// 					sudo ./shutdown.sh  2>/dev/null
+		// 					sudo sleep 5
+		// 					sudo ./startup.sh
+		// 					sudo sleep 10
+		// 					cd /var/www/html/shfiles
+		// 					sudo ./schedularProcess.sh''', 
+		// 				    execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+		// 				    patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+		// 				    removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+		// 				    useWorkspaceInPromotion: false, verbose: true)])
+		// 			       }
+        //               }
+        //               stage('APOLLO 1'){
+        //                 when { expression { params.APOLLO} }
+	    //                     steps {
+	    //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+	    //                     transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+	    //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+	    //                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	    //                     removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
+	    //                     useWorkspaceInPromotion: false, verbose: false)])
 	                        
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	                        execCommand: """cd /home/devops
-							sudo rm -rf  /var/www/html/eg_yii2_framework_v2
-							sudo unzip -o html-${uprNumber}.zip -d /var/www/
-							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
-							sudo rm -rf /home/devops/html-${uprNumber}.zip""",
-							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-							removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-							useWorkspaceInPromotion: false, 
-							verbose: true)])
-                          }
-                       }
-					//     stage('APOLLO ANGULAR')
-                    //    {
-                    //     when { expression { params.OPS } }
-                    //     steps {
-                            
-					// 		sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                    //         execCommand: '''
-                    //         cd /home/devops
-					// 	    sudo rm -rf angular/eg_customer_ang_v1.zip
-                    //         ''',
-                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                    //         verbose: true)])
-                    //     //    deploying zip file
-                    //         sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                    //         execCommand: '',
-                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: "angular/eg_customer_ang_v1.zip")],
-                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                    //         verbose: true)])
-                    //    }
-                    //    }
-					//    stage('OPS')
-                    //    {
-                    //     when { expression { params.OPS } }
-                    //     steps {
-                           
-					// 		sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                    //         execCommand: '''
-                    //         cd /home/devops
-					// 	    sudo rm -rf processing_system
-                    //         ''',
-                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                    //         verbose: true)])
-					// 		sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
-                    //         sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                    //         execCommand: '',
-                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
-                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                    //         verbose: true)])
-                    //    }
-                    //    }
-                    }
-               }
+	    //                     sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+	    //                     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	    //                     execCommand: """cd /home/devops
+		// 					sudo rm -rf  /var/www/html/eg_yii2_framework_v2
+		// 					sudo unzip -o html-${uprNumber}.zip -d /var/www/
+		// 					sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+		// 					sudo rm -rf /home/devops/html-${uprNumber}.zip""",
+		// 					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+		// 					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+		// 					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+		// 					useWorkspaceInPromotion: false, 
+		// 					verbose: true)])
+        //                   }
+        //                }
+        //             }
+        //        }
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
-*/  
-        //  stage('CDN Sync')
-		//  {
-		//   when { expression { params.APOLLO} }
-        //    steps {
-        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-        // 	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-        // 	 execCommand: '''cd /home/devops
-		// 			if [ ! -d "common" ]; then
-		// 			     sudo mkdir common
-		// 			     sudo mkdir common/css
-		// 			     sudo mkdir common/js
-		// 			fi
-		// 			cd /var/www/html
-		// 			find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
-		// 			find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
-		// 			sudo rm -rf /home/devops/common/js/awss3.js
-		// 			cd eg_yii2_framework_v2/egiftify_extensions
-		// 			sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
-		// 			sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
-		// 			cd /var/www/html
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
-		// 			sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
-		// 			sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
-		// 			sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
-		// 			sudo rm -rf /home/devops/common/css/*
-		// 			sudo rm -rf /home/devops/common/js/*''',  
-		// 			execTimeout: 0, flatten: false, 
-		// 			makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
-		// 			remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-		// 			usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
-		// 	       }
-		// 	  }
+// */  
+//          stage('CDN Sync')
+// 		 {
+// 		  when { expression { params.APOLLO} }
+//            steps {
+//         	 sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+//         	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+//         	 execCommand: '''cd /home/devops
+// 					if [ ! -d "common" ]; then
+// 					     sudo mkdir common
+// 					     sudo mkdir common/css
+// 					     sudo mkdir common/js
+// 					fi
+// 					cd /var/www/html
+// 					find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+// 					find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+// 					sudo rm -rf /home/devops/common/js/awss3.js
+// 					cd eg_yii2_framework_v2/egiftify_extensions
+// 					sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
+// 					sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
+// 					sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
+// 					sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
+// 					sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
+// 					sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
+// 					sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
+// 					sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
+// 					sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
+// 					sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
+// 					cd /var/www/html
+// 					sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
+// 					sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
+// 					sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
+// 					sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
+// 					sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
+// 					sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
+// 					sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
+// 					sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
+// 					sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
+// 					sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
+// 					sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
+// 					sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
+// 					sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
+// 					sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
+// 					sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
+// 					sudo rm -rf /home/devops/common/css/*
+// 					sudo rm -rf /home/devops/common/js/*''',  
+// 					execTimeout: 0, flatten: false, 
+// 					makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+// 					remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+// 					usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
+// 			       }
+// 			  }
               
 /**
  STAGE 9. Adding and Removing Server to TG
