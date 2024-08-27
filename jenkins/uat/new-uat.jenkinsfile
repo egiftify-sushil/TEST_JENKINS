@@ -193,31 +193,61 @@ pipeline {
          STAGE 4: Running Maven Build and NPM on Services
          */
        
-                stage('Building Common Jars') {
-                    when { expression { params.JERSEY_RELEASE } }
+                 stage('Building global meta and jersey object') {
+                    parallel {
+                        stage('Building Common Spring Jars') {
+                            when { expression { params.JERSEY_RELEASE } }
 
-                    steps {
-                        script {
-                             def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
-                            def mavenCommands = [
-                            'mvn clean install'
-                          
-                             ]
+                            steps {
+                                script {
+                                    
+                                    def mavenCommands = [
+                                    'mvn clean install'
 
-                            springcommonRepos.each { repo1 ->
-                                dir(repo1) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
+                                    ]
 
-                                    // Execute Maven commands
-                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                     """
+                                    springcommonRepos.each { repo1 ->
+                                        dir(repo1) {
+                                            // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                        
+
+                                            // Execute Maven commands
+                                            withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                            mavenCommands.each { command ->
+                                            sh """                                   
+                                            ${command}
+                                            """
+                                            }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        stage('Building OPS') {
+                            when { expression { params.OPS_RELEASE } }
+
+                            steps {
+                                script {
+                                    
+                                    def mavenCommands = [
+                                        'mvn clean install'
+                                    ]
+
+                                    springplatformRepos.each { repo1 ->
+                                        dir(repo1) {
+                                            // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                        
+
+                                            // Execute Maven commands
+                                            withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                            mavenCommands.each { command ->
+                                            sh """                                   
+                                            ${command}
+                                            """
+                                            }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -225,122 +255,111 @@ pipeline {
                     }
                 }
 
-                stage('Platform Repos') {
-                    when { expression { params.OPS_RELEASE } }
-
-                    steps {
-                        script {
-                            def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
-                     
-                            def mavenCommands = [
-                            'mvn clean install',
-                           
-                             ]
-
-                            springplatformRepos.each { repo ->
-                                dir(repo) {
-                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
-
-                                    // Execute Maven commands
-                                   mavenCommands.each { command ->
-                                    sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                    """
+                  stage('Running Maven and Npm build'){
+                    parallel{
+                        stage('Building legacy platform') {
+                           when { expression { params.JERSEY_RELEASE } }
+                            steps {
+                                script {
+                                    def buildSteps = [
+                                        ['name': 'eg_objects', 'path': 'eg_objects'],
+                                        ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                                        ['name': 'eg_platform', 'path': 'eg_platform'],
+                                        ['name': 'scheduler_base', 'path': 'scheduler_base']
+                                    ]
+                                    buildSteps.each { step ->
+                                        dir(step.path) {
+                                            sh 'mvn clean'
+                                            sh 'mvn install -U'
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                }
+                        // use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
+                        stage('Building angular services') {
+                                    when {
+                                        expression { params.PHP_RELEASE }
+                                    }
+                                    steps {
+                                            script {
+                                                withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                                    sh '''
+                                                        cd html/eg_customer_ang_v1
+                                                        # Install project dependencies
+                                                        npm install
 
-                stage('Build CVS Platform') {
-                    when {
-                        expression { params.JERSEY_RELEASE }
-                    }
-                    steps {
-                        script {
-                            def buildSteps = [
-                            ['name': 'eg_objects', 'path': 'eg_objects'],
-                            ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
-                            ['name': 'eg_platform', 'path': 'eg_platform'],
-                            ['name': 'scheduler_base', 'path': 'scheduler_base']
-                             ]
+                                                        # Build the project
+                                                        ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                                        ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
 
-                             buildSteps.each { step ->
-                                dir(step.path) {
-                                    sh 'mvn clean'
-                                    sh 'mvn install -U'
+                                                        if [ -d "../../html" ]; then
+                                                        cp -r dist/customer ../../html/
+                                                        cp -r dist/wallet ../../html/
+                                                        else
+                                                        mkdir -p ../../html
+                                                        cp -r dist/customer ../../html/
+                                                        cp -r dist/wallet ../../html/
+                                                        fi
+                                                    '''
+                                                }
+                                            }
+                                    }
+                        
                                 }
-                            }
                         }
                     }
-                }
 
-                stage('Build Services') {
+               
+                stage('Building legacy services') {
                     when { expression { params.JERSEY_RELEASE } }
-
-                    steps {
-                        script {
-                                // Build each service sequentially
+                    parallel {
+                        stage('Build eg_portal_services') {
+                            steps {
                                 dir('eg_portal_services') {
                                     sh 'mvn clean package'
                                 }
+                            }
+                        }
+                        stage('Build eg_customer_services') {
+                            steps {
                                 dir('eg_customer_services') {
                                     sh 'mvn clean package'
                                 }
+                            }
+                        }
+                        stage('Build eg_lifeline_services') {
+                            steps {
                                 dir('eg_lifeline_services') {
                                     sh 'mvn clean package'
                                 }
+                            }
+                        }
+                        stage('Build eg_merchant_services') {
+                            steps {
                                 dir('eg_merchant_services') {
                                     sh 'mvn clean package'
                                 }
+                            }
+                        }
+                        stage('Build eg_scheduler_services') {
+                            steps {
                                 dir('eg_scheduler_services') {
                                     sh 'mvn clean package'
                                 }
+                            }
+                        }
+                        stage('Build eg_scheduler') {
+                            steps {
                                 dir('eg_scheduler') {
                                     sh 'mvn clean package'
                                 }
-                        }
-                    }
-                }
-// use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
-                stage('Build Angular Services') {
-                    when {
-                        expression { params.ANGULAR_RELEASE }
-                    }
-                    steps {
-                        script {
-                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                sh '''
-                                   cd angular/eg_customer_ang_v1
-                                   
-                                   # Install project dependencies                                   
-                                     npm install
-
-                                   # Build the project
-                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                 # Check if html directory exists and move the folders accordingly
-                                     if [ -d "../../html" ]; then
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     else
-                                     mkdir -p ../../html
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     fi
-       
-                                 '''
                             }
                         }
                     }
                 }
+
+               
           
         /**
          STAGE 5: Creating Patch (Code Packaging)
