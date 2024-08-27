@@ -123,56 +123,56 @@ pipeline {
  STAGE 3. Taking backup of old codes on servers in /var/devops/backups/ dir
           ssh plugin used to excute the ssh  command on all remote servers
 */
-    stage('Backup'){
-     parallel{
-       stage('MARINER 1'){
-        when { expression { params.MARINER } }
-           steps {
+    // stage('Backup'){
+    //  parallel{
+    //    stage('MARINER 1'){
+    //     when { expression { params.MARINER } }
+    //        steps {
                  
-		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
-		          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-		          execCommand: """cd /var/devops/backups
-					sudo rm -rf webapps*
-					cd /var/lib/tomcat9/webapps
-					sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
-					execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-					noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-					remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-					useWorkspaceInPromotion: false, verbose: true)])
-		          }
-            } 
-            stage('EXPLORER'){
-             when { expression { params.EXPLORER } }
-               steps {
-			          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
-			          excludes: '',
-			          execCommand: """cd /var/devops/backups
-						sudo rm -rf delivery*
-						cd  /opt/tomcat9/webapps
-						sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
-						""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-						removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-						useWorkspaceInPromotion: false, verbose: true)])
-			          }
-           }
-            stage('APOLLO 1'){
-            when { expression { params.APOLLO } }
-             steps {
-		           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
-		           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-		           execCommand: """cd /var/devops/backups
-					sudo rm -rf html*
-				    cd /var/www/html
-					sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
-					execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-					useWorkspaceInPromotion: false, verbose: true)])
-		          }
-            }  
-          }
-         } 
+	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'Mariner1', 
+	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	// 	          execCommand: """cd /var/devops/backups
+	// 				sudo rm -rf webapps*
+	// 				cd /var/lib/tomcat9/webapps
+	// 				sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
+	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+	// 				noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+	// 				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+	// 				useWorkspaceInPromotion: false, verbose: true)])
+	// 	          }
+    //         } 
+    //         stage('EXPLORER'){
+    //          when { expression { params.EXPLORER } }
+    //            steps {
+	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'Explorer', transfers: [sshTransfer(cleanRemote: false, 
+	// 		          excludes: '',
+	// 		          execCommand: """cd /var/devops/backups
+	// 					sudo rm -rf delivery*
+	// 					cd  /opt/tomcat9/webapps
+	// 					sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
+	// 					""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+	// 					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	// 					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+	// 					useWorkspaceInPromotion: false, verbose: true)])
+	// 		          }
+    //        }
+    //         stage('APOLLO 1'){
+    //         when { expression { params.APOLLO } }
+    //          steps {
+	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1',
+	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	// 	           execCommand: """cd /var/devops/backups
+	// 				sudo rm -rf html*
+	// 			    cd /var/www/html
+	// 				sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
+	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+	// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+	// 				useWorkspaceInPromotion: false, verbose: true)])
+	// 	          }
+    //         }  
+    //       }
+    //      } 
 /**
  STAGE 4. Doing Checkout of JAVA Main Branch code using CVSSCM plugin configured on the jenkins.
           Main branch code is required to perform the partial builds . Also we are creating jars
