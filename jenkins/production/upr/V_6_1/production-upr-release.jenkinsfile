@@ -501,47 +501,47 @@ pipeline {
                     }
                  }
 
-				 stage('OPS checkout ') {
-							when { expression { params.OPS} }
-							steps {
-									script {
-									withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
-										springplatformRepos.each { repo ->
-											dir(repo) {
-												checkout([
-												$class: 'GitSCM',
-												branches: [[name: "${gitbranch}"]],
-												userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
-											])
-											}
-										}
-									}
-								}
-							}
-						}
-					stage('Building OPS Repos') {
-                     when { expression { params.OPS } }
-						steps {
-							script {                            
-								def mavenCommands = [
-									'mvn clean install'
-								]
-								springplatformRepos.each { repo ->
-									dir(repo) {
-										// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
-										// Execute Maven commands
-									withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
-										mavenCommands.each { command ->
-										sh """
-										${command}
-										"""
-										}
-										}
-									}
-								}
-							}
-						}
-					} 
+				//  stage('OPS checkout ') {
+				// 			when { expression { params.OPS} }
+				// 			steps {
+				// 					script {
+				// 					withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+				// 						springplatformRepos.each { repo ->
+				// 							dir(repo) {
+				// 								checkout([
+				// 								$class: 'GitSCM',
+				// 								branches: [[name: "${gitbranch}"]],
+				// 								userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+				// 							])
+				// 							}
+				// 						}
+				// 					}
+				// 				}
+				// 			}
+				// 		}
+					// stage('Building OPS Repos') {
+                    //  when { expression { params.OPS } }
+					// 	steps {
+					// 		script {                            
+					// 			def mavenCommands = [
+					// 				'mvn clean install'
+					// 			]
+					// 			springplatformRepos.each { repo ->
+					// 				dir(repo) {
+					// 					// Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
+					// 					// Execute Maven commands
+					// 				withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+					// 					mavenCommands.each { command ->
+					// 					sh """
+					// 					${command}
+					// 					"""
+					// 					}
+					// 					}
+					// 				}
+					// 			}
+					// 		}
+					// 	}
+					// } 
 /**
  STAGE 7. Deploying Patch on servers with the help of sshPublisher plugin
 */ 
@@ -685,33 +685,33 @@ pipeline {
                     //         verbose: true)])
                     //    }
                     //    }
-					   stage('OPS')
-                       {
-                        when { expression { params.OPS } }
-                        steps {
+					//    stage('OPS')
+                    //    {
+                    //     when { expression { params.OPS } }
+                    //     steps {
                            
-							sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '''
-                            cd /home/devops
-						    sudo rm -rf processing_system
-                            ''',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
-							sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
-                       }
-                       }
+					// 		sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                    //         execCommand: '''
+                    //         cd /home/devops
+					// 	    sudo rm -rf processing_system
+                    //         ''',
+                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                    //         verbose: true)])
+					// 		sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
+                    //         sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                    //         transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                    //         execCommand: '',
+                    //         execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                    //         noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                    //         remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
+                    //         usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                    //         verbose: true)])
+                    //    }
+                    //    }
                     }
                }
 /**
