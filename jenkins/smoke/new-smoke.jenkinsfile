@@ -435,7 +435,7 @@ pipeline {
                             cd /var/www/html/shfiles
                             . killSchedularProcess.sh
                             cd /opt/tomcat/bin
-                            sudo ./shutdown.sh 
+                            sudo systemctl stop tomcat.service
                             sleep 15
                             sudo systemctl start tomcat.service
                             sleep 15
