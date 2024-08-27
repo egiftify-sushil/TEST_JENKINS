@@ -193,31 +193,29 @@ pipeline {
          STAGE 4: Running Maven Build and NPM on Services
          */
        
-                stage('Building Common Jars') {
-                    when { expression { params.JERSEY_RELEASE } }
+                stage('Building Common Spring Jars') {
+                    when { expression { params.JAVA_RELEASE } }
 
                     steps {
                         script {
-                             def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
+                            
                             def mavenCommands = [
                             'mvn clean install'
-                          
+
                              ]
 
                             springcommonRepos.each { repo1 ->
                                 dir(repo1) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
+                                   
 
                                     // Execute Maven commands
-                                     mavenCommands.each { command ->
-                                        sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
-                                     """
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """                                   
+                                    ${command}
+                                    """
+                                    }
                                     }
                                 }
                             }
@@ -225,32 +223,28 @@ pipeline {
                     }
                 }
 
-                stage('Platform Repos') {
+                stage('Building OPS') {
                     when { expression { params.OPS_RELEASE } }
 
                     steps {
                         script {
-                            def javaHome = "/usr/lib/jvm/java-17-amazon-corretto" 
-                     
+                            
                             def mavenCommands = [
-                            'mvn clean install',
-                           
-                             ]
+                                'mvn clean install'
+                            ]
 
-                            springplatformRepos.each { repo ->
-                                dir(repo) {
+                            springplatformRepos.each { repo1 ->
+                                dir(repo1) {
                                     // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
-                                    sh '''
-                                    find . -name "pom.xml" -exec sed -i 's/artifact.egiftify-dev.com/54.205.166.118/g' {} +
-                                    '''
+                                   
 
                                     // Execute Maven commands
-                                   mavenCommands.each { command ->
-                                    sh """
-                                        export JAVA_HOME=${javaHome}
-                                        export PATH=\$JAVA_HOME/bin:\$PATH
-                                        ${command}
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """                                   
+                                    ${command}
                                     """
+                                    }
                                     }
                                 }
                             }
