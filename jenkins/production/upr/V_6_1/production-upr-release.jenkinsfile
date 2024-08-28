@@ -570,10 +570,10 @@ stage('Patch Checkout'){
 
                         steps {
                         script {                           
-                                sh '''
+                               sh '''
                                 sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                                 '''
-                                sh "zip -r html-${sprNumber}.zip html/*"                            
+                                sh "zip -r html-${sprNumber}.zip html/*"                   
                         }
                     }
                 }
