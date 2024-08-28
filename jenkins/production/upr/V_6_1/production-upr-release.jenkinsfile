@@ -6,7 +6,7 @@ We can upload to any codebase like java OR Php OR Delivery depending upon the us
 There are 10 main stages involved in releasing the SPR
 STAGE 1:-  Verifying SPR param and deleting pipeline workspace.
 STAGE 2:-  Removing instance from taget groups.(MARINER 1 & APOLLO 1) {Parallel}
- Taking backup of old codes on servers in /var/devops/backups/{codebase}-sprNumber.zip. {Parallel}
+ Taking backup of old codes on servers in /var/devops/backups/{codebase}-uprNumber.zip. {Parallel}
 STAGE 3:-  Code checkout from SPR branch (all selected projects) using CVSSCM plugin configured on the jenkins. {Parallel}
 STAGE 4:-  Code checkout from Git (6.1.0 Branch)
 STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework {Parallel} and angular
@@ -44,7 +44,7 @@ pipeline {
     agent {
         node {
                     label ''
-                    customWorkspace '/var/devops/spr_testing/'
+                    customWorkspace '/var/devops/upr_testing/'
           }
     }
     /**
@@ -68,6 +68,7 @@ pipeline {
         string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
         string(name: 'UPR_NUMBER', defaultValue: '', description: 'Provide UPR Number')
 		string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
+		
     }
     stages {
 /**
@@ -76,12 +77,12 @@ pipeline {
         stage('Initiate SP Release') {
             steps {
                 script {
-                    if (params.SPR_NUMBER == '') {
+                    if (params.UPR_NUMBER == '') {
                         currentBuild.result = 'ABORTED'
                         error('UPR NUMBER Not  Defined�')
                          }else {
                         gitbranch = params.GIT_BRANCH_NAME
-                        sprNumber = params.SPR_NUMBER
+                        uprNumber = params.UPR_NUMBER
 						branchname = params.BRANCH_NAME;
                         if (params.OPS) {
                                 servers = 'TEST_SERVER'
@@ -158,7 +159,7 @@ pipeline {
 //                       execCommand: """cd /var/devops/backups
 //                     sudo rm -rf webapps*
 //                     cd /var/lib/tomcat9/webapps
-//                     sudo zip -r   /var/devops/backups/webapps-${sprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" ,
+//                     sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" ,
 //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
 //                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
 //                     removePrefix: '', sourceFiles: '')],
@@ -174,7 +175,7 @@ pipeline {
 //                        execCommand: """cd /var/devops/backups
 //                         sudo rm -rf delivery*
 //                         cd /var/lib/tomcat9/webapps
-//                         sudo zip -r  /var/devops/backups/delivery-${sprNumber}.zip eg_scheduler/* eg_scheduler_services/*
+//                         sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler/* eg_scheduler_services/*
 //                         """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
 //                         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
 //                         removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
@@ -189,7 +190,7 @@ pipeline {
 //                     execCommand: """cd /var/devops/backups
 //                     sudo rm -rf html*
 //                     cd /var/www/html
-//                     sudo zip -r /var/devops/backups/html-${sprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
+//                     sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
 //                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
 //                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
 //                     removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
@@ -249,7 +250,7 @@ pipeline {
                         withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
                             checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false,
                             repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
-                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber, useHeadIfNotFound: false],
+                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber, useHeadIfNotFound: false],
                             modules: [[localName: 'eg_objects', remoteName: 'eg_objects'],
                             [localName: 'eg_platform', remoteName: 'eg_platform'],
                             [localName: 'scheduler_base', remoteName: 'scheduler_base'],
@@ -272,7 +273,7 @@ pipeline {
                         withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
                             checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
                             repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
-                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber, useHeadIfNotFound: false],
+                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber, useHeadIfNotFound: false],
                             modules: [
                             [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'],
                             [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'],
@@ -293,14 +294,14 @@ pipeline {
                             checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
                             cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
                             repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
-                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: sprNumber,
+                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber,
                             useHeadIfNotFound: false], modules: [
                             [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
                         }
                     }
                 }
-	        }
-		}
+            }
+        }
     /**
    STAGE 4.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
 
@@ -483,51 +484,9 @@ pipeline {
                         }
                     }
                 }
-               
-               
-            //     }
-            //    }
-
+              
 /**
-  STAGE 5.Doing Patch Checkout of php 
- */  	                        
-         stage('Patch Checkout'){
-               parallel{
-	                 
-	                  stage('PHP Checkout'){
-	                  	when { expression { params.APOLLO } }
-		                  steps {   
-		                       withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
-					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}", passwordRequired: true, 
-					              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false],
-					              modules: [
-					              [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'], 
-					              [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'], 
-					              [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'], 
-					              [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2']]]]]], 
-					              skipChangeLog: false]
-	                            }
-                           }
-                        }
-                      stage('PHP Framework Checkout'){
-	                  	when { expression { params.APOLLO } }
-		                  steps {
-					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
-					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
-					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
-					              modules: [
-					              [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]], 
-					              skipChangeLog: false]
-		                         }
-	                        }
-	                     }  
-                    }
-                 }
-
-				 /**
-   STAGE 6.Creating Patch (Running maven ,code packaging for JERSSEY)
+   STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
 */
         stage('Create Patch')
         {
@@ -562,7 +521,7 @@ pipeline {
                                     cd ..
                                 fi
                          '''
-                        sh"zip -r webapps-${sprNumber}.zip webapps"
+                        sh"zip -r webapps-${uprNumber}.zip webapps"
                     }
                 }
                 stage('Creating Scheduler Patch') {
@@ -584,32 +543,116 @@ pipeline {
                         '''
                         sh"""
                              cd deliverywebapps
-                             zip -r ../delivery_webapps-${sprNumber}.zip eg_scheduler eg_scheduler_services
+                             zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services
                         """
                         }
                 }
-				 stage('Creating PHP Patch'){
-                        when { expression { params.APOLLO} }
-                        steps {
-                          sh '''
-							cd html
-							cd eg_yii2_framework_v2
-							composer install
-							cd ..
-							cd ..
-							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-							'''
-							sh"zip -r html-${uprNumber}.zip html/*"	
-                        }
-                      }
+
+                
             }
        }
 
+
 				
 /**
- STAGE 7. Deploying Patch on servers(MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin
+ STAGE . Deploying Patch on servers(MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin
+ 
 */
-       
+stage('Patch Checkout'){
+               parallel{
+	                 
+	                  stage('PHP Checkout'){
+	                  	when { expression { params.APOLLO } }
+		                  steps {   
+		                       withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false],
+					              modules: [
+					              [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'], 
+					              [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'], 
+					              [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'], 
+					              [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2']]]]]], 
+					              skipChangeLog: false]
+	                            }
+                           }
+                        }
+                      stage('PHP Framework Checkout'){
+	                  	when { expression { params.APOLLO } }
+		                  steps {
+					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
+					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+					              modules: [
+					              [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]], 
+					              skipChangeLog: false]
+		                         }
+	                        }
+	                     }  
+						 stage('Angular Repos Checkout') {
+                    when { expression { params.APOLLOANGULAR } }
+                    steps {
+                        sh 'mkdir -p angular'
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
+                        {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
+                            cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
+                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber,
+                            useHeadIfNotFound: false], modules: [
+                            [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
+                        }
+                    }
+                }
+                    }
+                 }
+        stage('Building Yii2 Framework and Angular Services'){
+                parallel{
+                     stage('Building Yii2 Framework ') {
+                    when { expression { params.APOLLO } }
+                    steps {
+                        sh''' 
+                             cd html
+                             cd eg_yii2_framework_v2
+                             composer install
+                            '''
+                    }
+                }
+                stage('Build Angular Services') {
+                    when {
+                        expression { params.APOLLOANGULAR }
+                    }
+                    steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                   cd angular/eg_customer_ang_v1
+
+                                   # Install project dependencies                                   
+                                     npm install
+
+                                   # Build the project
+                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                   # Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     else
+                                     mkdir -p ../../html
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     fi
+
+                                 '''
+                            }
+                        }
+                    }
+                }
+                }
+               }
 
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
@@ -722,18 +765,18 @@ pipeline {
   STAGE 10. Sending Email notification to developers
  */
 //  if (buildStatus == 'SUCCESS') {
-//     subject = "SPR ${sprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
-//     env.content = "SPR ${sprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
+//     subject = "SPR ${uprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
+//     env.content = "SPR ${uprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
 //  }
 //  else if (buildStatus == 'UNSTABLE') {
-//     subject = "SPR ${sprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
-//     env.content = "SPR ${sprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+//     subject = "SPR ${uprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
+//     env.content = "SPR ${uprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
 //     attachment = true
 //  }
 //  else
 //  {
-//     subject = "SPR ${sprNumber} FAILED TO DEPLOY ON ${servers}"
-//     env.content = "SPR ${sprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+//     subject = "SPR ${uprNumber} FAILED TO DEPLOY ON ${servers}"
+//     env.content = "SPR ${uprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
 //     attachment = true
 //  }
 
