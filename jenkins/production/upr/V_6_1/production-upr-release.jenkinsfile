@@ -694,36 +694,27 @@ stage('Patch Checkout'){
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sh '''
-															if [ ! -d "ops-spring" ]; then
-								echo "Directory 'ops-spring' does not exist. Creating it now."
-								mkdir -p ops-spring
-								fi
-
-								# Move the file
-								mv processing_system/target/ops.jar ops-spring/ops-${uprNumber}.jar
-
-							'''
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '''
-                            cd /home/devops
-						    sudo rm -rf ops-spring
-                            ''',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
-
-                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                            execCommand: '',
-                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
-                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "ops-spring/ops-${uprNumber}.jar")],
-                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
-                            verbose: true)])
+                           sshPublisher(
+                                    publishers:[
+                                        sshPublisherDesc(
+                                            configName: 'TEST_SERVER',
+                                            transfers:[
+                                                sshTransfer(
+                                                    cleanRemote: false,
+                                                    excludes: '',
+                                                    execCommand: '',
+                                                    execTimeout: 0,
+                                                    flatten: false,
+                                                    makeEmptyDirs: false,
+                                                    noDefaultExcludes: false,
+                                                    patternSeparator: '[, ]+',
+                                                    remoteDirectory: 'processing_system',
+                                                    remoteDirectorySDF: false,
+                                                    removePrefix: 'processing_system/target',
+                                                    sourceFiles: 'processing_system/target/ops.jar')],
+                                            usePromotionTimestamp: false,
+                                            useWorkspaceInPromotion: false,
+                                            verbose: true)])
                        }
                        }
                     }
