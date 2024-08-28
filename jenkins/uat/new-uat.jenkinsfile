@@ -284,7 +284,7 @@ pipeline {
                     }
                     stage('Building angular services') {
                             when {
-                                expression { params.PHP_RELEASE }
+                                expression { params.ANGULAR_RELEASE }
                             }
                             steps {
                                     script {
@@ -442,8 +442,7 @@ pipeline {
                     }
                     steps {
                         sh '''
-                    cd html
-                    cd ..
+                   
                     sudo find html -type d -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                     zip -r html.zip html/*
                     '''
