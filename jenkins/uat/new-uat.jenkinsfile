@@ -441,10 +441,9 @@ pipeline {
                         }
                     }
                     steps {
-                        sh '''
-                   
-                    sudo find html -type d -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-                    zip -r html.zip html/*
+                        sh '''                   
+                        sudo find html -type d -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                        zip -r html.zip html/*
                     '''
                     }
                 }
