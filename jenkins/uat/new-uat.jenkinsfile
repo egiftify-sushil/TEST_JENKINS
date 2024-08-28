@@ -194,7 +194,9 @@ pipeline {
          */
        
                 stage('Building Common Spring Jars') {
-                    when { expression { params.JAVA_RELEASE } }
+                     when {
+                        expression { params.JERSEY_RELEASE }
+                    }
 
                     steps {
                         script {

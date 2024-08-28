@@ -439,8 +439,8 @@ pipeline {
                             sleep 15
                             sudo systemctl start tomcat.service
                             sleep 15
-                            cd /var/www/html/shfiles
-                            . schedularProcess.sh
+                           cd /var/www/html/shfiles
+						   sudo ./schedularProcess.sh
 
 
                                         ''',
