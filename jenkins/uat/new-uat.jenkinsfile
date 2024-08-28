@@ -288,7 +288,7 @@ pipeline {
                             }
                             steps {
                                     script {
-                                        withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                       withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
                                             sh '''
                                             cd angular/eg_customer_ang_v1
                                             
