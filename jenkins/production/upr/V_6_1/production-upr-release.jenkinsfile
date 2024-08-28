@@ -229,7 +229,8 @@ pipeline {
 													cd eg_portal_services
 													mvn clean
 													mvn install -Dpackaging.type=jar -U
-													
+													cd ..
+													rm -rf eg_portal_services
 													'''
 						                     }
 				                  		 }
@@ -240,7 +241,8 @@ pipeline {
 												cd eg_customer_services
 												mvn clean
 												mvn install -Dpackaging.type=jar -U
-												
+												cd ..
+												rm -rf eg_customer_services
 												'''
 					                     }
 				                   	}
@@ -251,7 +253,8 @@ pipeline {
 												cd eg_lifeline_services
 												mvn clean
 												mvn install -Dpackaging.type=jar -U
-												
+												cd ..
+												rm -rf eg_lifeline_services
 												'''
 					                     }
 				                   }
@@ -262,7 +265,8 @@ pipeline {
 											cd eg_merchant_services
 											mvn clean
 											mvn install -Dpackaging.type=jar -U
-											
+											cd ..
+											rm -rf eg_merchant_services
 											'''
 				                     }
 				                   }
@@ -273,7 +277,8 @@ pipeline {
 											cd eg_scheduler_services
 											mvn clean
 											mvn install -Dpackaging.type=jar -U
-											
+											cd ..
+											rm -rf eg_scheduler_services
 											'''
 				                     }
 				                   }
@@ -362,8 +367,8 @@ pipeline {
 /**
    STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
  */  
-        //   stage('Create Patch'){
-        //          parallel{
+          stage('Create Patch'){
+                 parallel{
                     stage('Creating Services Patch'){
                       when { expression { params.MARINER} }
                         steps {
@@ -414,7 +419,6 @@ pipeline {
 							 sh"zip -r webapps-${uprNumber}.zip webapps"
                         }
                       }
-
                       stage('Creating Scheduler Patch'){
                         when { expression { params.EXPLORER} }
                         steps {
@@ -444,22 +448,22 @@ pipeline {
 							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
                         }
                       }
-                    //   stage('Creating PHP Patch'){
-                    //     when { expression { params.APOLLO} }
-                    //     steps {
-                    //       sh '''
-					// 		cd html
-					// 		cd eg_yii2_framework_v2
-					// 		composer install
-					// 		cd ..
-					// 		cd ..
-					// 		sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-					// 		'''
-					// 		sh"zip -r html-${uprNumber}.zip html/*"	
-                    //     }
-                    //   }
-                //     }
-                //  }
+                      stage('Creating PHP Patch'){
+                        when { expression { params.APOLLO} }
+                        steps {
+                          sh '''
+							cd html
+							cd eg_yii2_framework_v2
+							composer install
+							cd ..
+							cd ..
+							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+							'''
+							sh"zip -r html-${uprNumber}.zip html/*"	
+                        }
+                      }
+                    }
+                 }
 /**
  STAGE 7. Deploying Patch on servers with the help of sshPublisher plugin
 */ 

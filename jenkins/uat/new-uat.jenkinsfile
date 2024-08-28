@@ -192,7 +192,8 @@ pipeline {
         /**
          STAGE 4: Running Maven Build and NPM on Services
          */
-       
+        stage('Building global meta and jersey object') {
+            parallel {
                 stage('Building Common Spring Jars') {
                      when {
                         expression { params.JERSEY_RELEASE }
@@ -253,31 +254,64 @@ pipeline {
                         }
                     }
                 }
-
-                stage('Build CVS Platform') {
-                    when {
-                        expression { params.JERSEY_RELEASE }
-                    }
-                    steps {
-                        script {
-                            def buildSteps = [
+             }
+            }
+             stage('Running Maven and Npm build'){
+            parallel{
+            stage('Building legacy platform') {
+                when {
+                    expression { params.JAVA_RELEASE }
+                }
+                steps {
+                    script {
+                        def buildSteps = [
                             ['name': 'eg_objects', 'path': 'eg_objects'],
                             ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
                             ['name': 'eg_platform', 'path': 'eg_platform'],
                             ['name': 'scheduler_base', 'path': 'scheduler_base']
-                             ]
-
-                             buildSteps.each { step ->
-                                dir(step.path) {
-                                    sh 'mvn clean'
-                                    sh 'mvn install -U'
-                                }
+                        ]
+                        buildSteps.each { step ->
+                            dir(step.path) {
+                                sh 'mvn clean'
+                                sh 'mvn install -U'
                             }
                         }
                     }
                 }
+            }
+            stage('Building angular services') {
+                        when {
+                            expression { params.PHP_RELEASE }
+                        }
+                        steps {
+                                script {
+                                    withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                        sh '''
+                                            cd html/eg_customer_ang_v1
+                                            # Install project dependencies
+                                            npm install
 
-                 stage('Building legacy services') {
+                                            # Build the project
+                                            ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                            ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                            # Move the wallet and customer folders to the html directory
+                                            mv dist/customer ../customer
+                                            mv dist/wallet ../wallet
+
+                                            # Navigate back to the html directory and delete eg_customer_ang_v1
+                                            cd ..
+                                            rm -rf eg_customer_ang_v1
+                                        '''
+                                    }
+                                }
+                        }
+            
+                    }
+            }
+        }
+
+             stage('Building legacy services') {
                 when { expression { params.JERSEY_RELEASE } }
                     parallel {
                         stage('Build eg_portal_services') {
@@ -325,38 +359,7 @@ pipeline {
                     }
                 }
 // use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
-                stage('Build Angular Services') {
-                    when {
-                        expression { params.ANGULAR_RELEASE }
-                    }
-                    steps {
-                        script {
-                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                sh '''
-                                   cd angular/eg_customer_ang_v1
-                                   
-                                   # Install project dependencies                                   
-                                     npm install
-
-                                   # Build the project
-                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                 # Check if html directory exists and move the folders accordingly
-                                     if [ -d "../../html" ]; then
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     else
-                                     mkdir -p ../../html
-                                     cp -r dist/customer ../../html/
-                                     cp -r dist/wallet ../../html/
-                                     fi
-       
-                                 '''
-                            }
-                        }
-                    }
-                }
+               
           
         /**
          STAGE 5: Creating Patch (Code Packaging)
