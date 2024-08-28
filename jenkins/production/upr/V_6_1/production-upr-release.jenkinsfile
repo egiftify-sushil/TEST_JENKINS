@@ -665,6 +665,150 @@ stage('Patch Checkout'){
                         }
                     }
                 }
+
+            stage('Deploy Patch'){
+                 parallel{
+                    stage('MARINER 1'){
+                      when { expression { params.MARINER} }
+                        steps {
+  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+  				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+  				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+  				        sourceFiles: "webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
+  				        useWorkspaceInPromotion: false, verbose: false)])
+  				         
+                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                        execCommand: """cd /home/devops
+					    sudo unzip -o webapps-${uprNumber}.zip
+					    sudo chmod -R 775 webapps
+					    cd webapps
+						if [ -d 'ROOT' ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/ROOT/WEB-INF/lib/*
+						fi
+						if [ -d 'es' ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/es/WEB-INF/lib/*
+						fi
+						if [ -d 'eg_portal_services' ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
+						fi
+						if [ -d 'egCustomerServices' ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/egCustomerServices/WEB-INF/lib/*
+						fi
+						cd /home/devops
+						sudo unzip -o webapps-${uprNumber}.zip -d /var/lib/tomcat9/
+						cd /opt/tomcat9/bin
+						sudo ./shutdown.sh
+						sleep 5
+						sudo ./startup.sh
+						sleep 15
+						sudo rm -rf /home/devops/webapps*""", execTimeout: 0, flatten: false, 
+						makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+						useWorkspaceInPromotion: false, verbose: true)])
+					   }
+                      }
+                      stage('EXPLORER'){
+                        when { expression { params.EXPLORER} }
+                        steps {
+				          
+				            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+				            transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+				            execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+				            patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '',
+				            sourceFiles: "delivery_webapps-${uprNumber}.zip")], usePromotionTimestamp: false, 
+				            useWorkspaceInPromotion: false, verbose: true)])
+					          
+		           		 	sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+		            		execCommand: """cd /home/devops
+							sudo unzip -o delivery_webapps-${uprNumber}.zip
+							if [ -d 'eg_scheduler_services' ]; then
+						 	 sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
+							fi
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
+							sudo unzip -o delivery_webapps-${uprNumber}.zip -d /var/lib/tomcat9/webapps/
+							sudo rm -rf /home/devops/delivery_webapps-${uprNumber}.zip
+							sudo rm -rf /home/devops/eg*
+							sudo rm -rf /home/devops/delivery_webapps*""", 
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
+							patternSeparator: '[, ]+', remoteDirectory: '', 
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: false)])
+					   
+					        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+					        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+							execCommand: '''cd /var/www/html/shfiles
+							sudo ./newkillSchedularProcess.sh
+							cd /opt/tomcat9/bin
+							sudo ./shutdown.sh  2>/dev/null
+							sudo sleep 5
+							sudo ./startup.sh
+							sudo sleep 10
+							cd /var/www/html/shfiles
+							sudo ./schedularProcess.sh''', 
+						    execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						    patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+						    removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+						    useWorkspaceInPromotion: false, verbose: true)])
+					       }
+                      }
+                      stage('APOLLO 1'){
+                       when { expression { params.APOLLO || params.APOLLOANGULAR } }
+	                        steps {
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
+	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+	                        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+	                        removePrefix: '', sourceFiles: "html-${uprNumber}.zip")], usePromotionTimestamp: false, 
+	                        useWorkspaceInPromotion: false, verbose: false)])
+	                        
+	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
+	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+	                        execCommand: """cd /home/devops
+							sudo rm -rf  /var/www/html/eg_yii2_framework_v2
+							sudo unzip -o html-${uprNumber}.zip -d /var/www/
+							sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+							sudo rm -rf /home/devops/html-${uprNumber}.zip""",
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+							patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+							removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+							useWorkspaceInPromotion: false, 
+							verbose: true)])
+                          }
+                       }
+					   stage('OPS')
+                       {
+                        when { expression { params.OPS } }
+                        steps {
+                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''
+                            cd /home/devops
+						    sudo rm -rf processing_system
+                            ''',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                       }
+                       }
+                    }
+               }
+
+
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
 **/
