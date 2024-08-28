@@ -192,6 +192,9 @@ pipeline {
         /**
          STAGE 4: Running Maven Build and NPM on Services
          */
+        stage('Build')
+        {
+ 		stages { 
         stage('Building global meta and jersey object') {
             parallel {
                 stage('Building Common Spring Jars') {
@@ -358,6 +361,7 @@ pipeline {
                         }
                     }
                 }
+    }    } 
 // use this cmd npm install -g @angular/cli@14.0.4 if it fails to find angular modules
                
           
