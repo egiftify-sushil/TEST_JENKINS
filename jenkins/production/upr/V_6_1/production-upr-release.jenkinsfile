@@ -607,7 +607,7 @@ stage('Patch Checkout'){
                 }
                     }
                  }
-        stage('Building Yii2 Framework and Angular Services'){
+            stage('Building Yii2 Framework and Angular Services'){
                 parallel{
                      stage('Building Yii2 Framework ') {
                     when { expression { params.APOLLO } }
@@ -653,7 +653,18 @@ stage('Patch Checkout'){
                 }
                 }
                }
+               stage('Creating PHP Patch Or Angular Patch') {
+                      when { expression { params.APOLLO || params.APOLLOANGULAR } }
 
+                        steps {
+                        script {                           
+                                sh '''
+                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                '''
+                                sh "zip -r html-${sprNumber}.zip html/*"                            
+                        }
+                    }
+                }
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
 **/
