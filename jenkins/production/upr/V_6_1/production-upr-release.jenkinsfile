@@ -694,7 +694,16 @@ stage('Patch Checkout'){
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sh "mv processing_system/target/ops.jar ops-spring/ops-${uprNumber}.jar"
+                            sh '''
+															if [ ! -d "ops-spring" ]; then
+								echo "Directory 'ops-spring' does not exist. Creating it now."
+								mkdir -p ops-spring
+								fi
+
+								# Move the file
+								mv processing_system/target/ops.jar ops-spring/ops-${uprNumber}.jar
+
+							'''
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
