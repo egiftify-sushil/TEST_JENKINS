@@ -571,7 +571,7 @@ stage('Patch Checkout'){
                         steps {
                         script {                           
                                sh '''
-                                sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                                 '''
                                 sh "zip -r html-${uprNumber}.zip html/*"                   
                         }
@@ -694,12 +694,12 @@ stage('Patch Checkout'){
                        {
                         when { expression { params.OPS } }
                         steps {
-                            sh "mv processing_system/target/ops.jar processing_system/target/ops-${uprNumber}.jar"
+                            sh "mv processing_system/target/ops.jar ops-spring/ops-${uprNumber}.jar"
                             sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
                             cd /home/devops
-						    sudo rm -rf processing_system
+						    sudo rm -rf ops-spring
                             ''',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
@@ -712,7 +712,7 @@ stage('Patch Checkout'){
                             execCommand: '',
                             execTimeout: 0, flatten: false, makeEmptyDirs: false,
                             noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
-                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "processing_system/target/ops-${uprNumber}.jar")],
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: "ops-spring/ops-${uprNumber}.jar")],
                             usePromotionTimestamp: false, useWorkspaceInPromotion: false,
                             verbose: true)])
                        }
