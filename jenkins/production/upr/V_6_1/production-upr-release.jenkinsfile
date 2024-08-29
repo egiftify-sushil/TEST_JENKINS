@@ -694,7 +694,7 @@ stage('Patch Checkout'){
                        {
                         when { expression { params.OPS } }
                         steps {
-                           sshPublisher(
+                           sshPublisher(                       
                                     publishers:[
                                         sshPublisherDesc(
                                             configName: 'TEST_SERVER',
