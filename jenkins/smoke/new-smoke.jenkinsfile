@@ -218,8 +218,7 @@ pipeline {
 /**
    STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
 */
-        stage('Running Maven and Npm build'){
-         parallel{
+        
             stage('Building legacy platform') {
                 when {
                     expression { params.JAVA_RELEASE }
@@ -242,37 +241,35 @@ pipeline {
                 }
             }
             stage('Building angular services') {
-                        when {
-                            expression { params.PHP_RELEASE }
+                when {
+                    expression { params.PHP_RELEASE }
+                }
+                steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                    cd html/eg_customer_ang_v1
+                                    # Install project dependencies
+                                    npm install
+
+                                    # Build the project
+                                    ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                    ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                    # Move the wallet and customer folders to the html directory
+                                    mv dist/customer ../customer
+                                    mv dist/wallet ../wallet
+
+                                    # Navigate back to the html directory and delete eg_customer_ang_v1
+                                    cd ..
+                                    rm -rf eg_customer_ang_v1
+                                '''
+                            }
                         }
-                        steps {
-                                script {
-                                    withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-                                        sh '''
-                                            cd html/eg_customer_ang_v1
-                                            # Install project dependencies
-                                            npm install
-
-                                            # Build the project
-                                            ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
-                                            ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
-
-                                            # Move the wallet and customer folders to the html directory
-                                            mv dist/customer ../customer
-                                            mv dist/wallet ../wallet
-
-                                            # Navigate back to the html directory and delete eg_customer_ang_v1
-                                            cd ..
-                                            rm -rf eg_customer_ang_v1
-                                        '''
-                                    }
-                                }
-                        }
-            
-                    }
+                }
+    
             }
-        }
-
+           
 /**
   STAGE 6.Running Maven Build on Services 
 */
