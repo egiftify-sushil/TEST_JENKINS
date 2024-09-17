@@ -1,0 +1,335 @@
+
+def branchname = 'V_6_1'
+def gitbranch = '6.1.0'
+def buildStatus = true
+def attachment = false
+// common jars
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
+
+]
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        jdk 'jdk14'
+        nodejs 'nodejs14'
+    }
+    parameters {
+        booleanParam(name: 'JAVA_RELEASE', defaultValue: true)
+        booleanParam(name: 'PHP_RELEASE', defaultValue: true)
+        booleanParam(name: 'OPS_RELEASE', defaultValue: false)
+        string(name: 'DB_FILE_PATH', defaultValue: '', description: 'Provide db file path if any')
+    }
+    stages {
+/**
+  STAGE 1.Deleting Pipeline Workspace
+*/
+    stage('Preparing for upload') {
+            steps {
+                script
+                {
+                    cleanWs()
+                }
+            }
+        }
+/**
+  STAGE 2. Doing Java Repos from git and cvs  Checkout
+*/
+        stage('Code checkout for Jersey And Php') {
+            parallel {
+                stage('Legacy services checkout ') {
+                    when { expression { params.PHP_RELEASE } }
+                    steps {
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false,
+                      repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                      repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: "${branchname}", useHeadIfNotFound: false],
+                      modules: [[localName: 'eg_objects', remoteName: 'eg_objects'],
+                      [localName: 'eg_platform', remoteName: 'eg_platform'],
+                      [localName: 'scheduler_base', remoteName: 'scheduler_base'],
+                      [localName: 'eg_portal_services', remoteName: 'eg_portal_services'],
+                      [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'],
+                      [localName: 'eg_customer_services', remoteName: 'eg_customer_services'],
+                      [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],
+                      [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services'],
+                      [localName: 'eg_scheduler', remoteName: 'eg_scheduler']]]]]],
+                      skipChangeLog: false]
+                        }
+                    }
+                }
+                stage('PHP checkout') {
+                    when { expression { params.PHP_RELEASE } }
+                    steps {
+                        sh '''
+                           mkdir html
+                          '''
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                          repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                          repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: "${branchname}", useHeadIfNotFound: false],
+                          modules: [
+                          [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'],
+                          [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'],
+                          [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'],
+                          [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2'],
+                          [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2'],
+                          [localName: 'html/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]],
+                          skipChangeLog: false]
+                        }
+                    }
+                }
+            }
+        }
+
+/**
+  STAGE 3. Doing Java Repos Checkout From Git
+*/
+        stage('Code checkout for global meta and jersey object') {
+            parallel {
+                stage('Common Repos Checkout (Git)') {
+                    when { expression { params.JAVA_RELEASE } }
+                    steps {
+                        script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springcommonRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('OPS checkout ') {
+                    when { expression { params.OPS_RELEASE } }
+                    steps {
+                            script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springplatformRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+                                    ])
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+/**
+  STAGE 4.Running Maven Build on Services and Platform cloned from git
+*/
+        stage('Building global meta and jersey object') {
+            parallel {
+                stage('Building Common Spring Jars') {
+                    when { expression { params.JAVA_RELEASE } }
+
+                    steps {
+                        script {
+                            
+                            def mavenCommands = [
+                            'mvn clean install'
+
+                             ]
+
+                            springcommonRepos.each { repo1 ->
+                                dir(repo1) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                   
+
+                                    // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """                                   
+                                    ${command}
+                                    """
+                                    }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building OPS') {
+                    when { expression { params.OPS_RELEASE } }
+
+                    steps {
+                        script {
+                            
+                            def mavenCommands = [
+                                'mvn clean install'
+                            ]
+
+                            springplatformRepos.each { repo1 ->
+                                dir(repo1) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                   
+
+                                    // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """                                   
+                                    ${command}
+                                    """
+                                    }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+/**
+   STAGE 5.Running Maven Build on Platform (objects,platform,scheduler)
+*/
+        stage('Running Maven and Npm build'){
+         parallel{
+            stage('Building legacy platform') {
+                when {
+                    expression { params.JAVA_RELEASE }
+                }
+                steps {
+                    script {
+                        def buildSteps = [
+                            ['name': 'eg_objects', 'path': 'eg_objects'],
+                            ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                            ['name': 'eg_platform', 'path': 'eg_platform'],
+                            ['name': 'scheduler_base', 'path': 'scheduler_base']
+                        ]
+                        buildSteps.each { step ->
+                            dir(step.path) {
+                                sh 'mvn clean'
+                                sh 'mvn install -U'
+                            }
+                        }
+                    }
+                }
+            }
+            stage('Building angular services') {
+                        when {
+                            expression { params.PHP_RELEASE }
+                        }
+                        steps {
+                                script {
+                                    withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                        sh '''
+                                            cd html/eg_customer_ang_v1
+                                            # Install project dependencies
+                                            npm install
+
+                                            # Build the project
+                                            ng build --configuration=eatwallet --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                            ng build --configuration=eatwallet --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                            # Move the wallet and customer folders to the html directory
+                                            mv dist/customer ../customer
+                                            mv dist/wallet ../wallet
+
+                                            # Navigate back to the html directory and delete eg_customer_ang_v1
+                                            cd ..
+                                            rm -rf eg_customer_ang_v1
+                                        '''
+                                    }
+                                }
+                        }
+            
+                    }
+            }
+        }
+
+/**
+  STAGE 6.Running Maven Build on Services 
+*/
+
+        stage('Building legacy services') {
+            when {
+                expression { params.JAVA_RELEASE }
+            }
+            parallel {
+                stage('Build eg_portal_services') {
+                    steps {
+                        dir('eg_portal_services') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+                stage('Build eg_customer_services') {
+                    steps {
+                        dir('eg_customer_services') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+                stage('Build eg_lifeline_services') {
+                    steps {
+                        dir('eg_lifeline_services') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+                stage('Build eg_merchant_services') {
+                    steps {
+                        dir('eg_merchant_services') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+                stage('Build eg_scheduler_services') {
+                    steps {
+                        dir('eg_scheduler_services') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+                stage('Build eg_scheduler') {
+                    steps {
+                        dir('eg_scheduler') {
+                            sh 'mvn clean package'
+                        }
+                    }
+                }
+            }
+        }
+
+        
+
+
+ 
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}

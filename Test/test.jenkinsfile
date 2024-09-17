@@ -1,0 +1,123 @@
+
+def branchname = 'V_6_1'
+
+pipeline {
+    agent any
+
+   
+    stages {
+/**
+  STAGE 1.Deleting Pipeline Workspace
+*/
+    stage('Preparing for upload') {
+            steps {
+                script
+                {
+                    cleanWs()
+                }
+            }
+        }
+/**
+  STAGE 2. Doing Java Repos from git and cvs  Checkout
+*/
+
+             
+                stage('PHP checkout') {
+                    when { expression { params.PHP_RELEASE } }
+                    steps {
+                        sh '''
+                           mkdir html
+                          '''
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                          repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                          repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: "${branchname}", useHeadIfNotFound: false],
+                          modules: [
+                        
+                          [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'],
+                         
+                          [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2'],
+                          ]]]]],
+                          skipChangeLog: false]
+                        }
+                    }
+                }
+           
+
+
+        
+
+
+
+        stage('Creating PHP patch') {
+                when { expression { params.PHP_RELEASE } }
+                steps {
+                sh '''
+                    cd html
+                    cd eg_yii2_framework_v2
+                    composer install
+                    cd ..
+                    cd ..
+                    find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                    zip -r html.zip html/*
+                    '''
+                }
+        }
+        
+ /** stage 8 :  Deploying On Server
+ */
+       
+        
+
+                stage('PHP') {
+                        when { expression { params.PHP_RELEASE } }
+                            steps {
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''cd /home/devops
+                                cd /var/www/html
+                                sudo rm -rf  eg_yii2_framework_v2
+                                cd /home/devops
+                                sudo unzip -o html.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/eg_yii2_framework_v2/
+                              
+							       sudo rm -rf /home/devops/html.zip'''
+                                ,
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+',
+                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                            }
+               
+      }
+
+    
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}
