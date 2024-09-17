@@ -250,7 +250,7 @@ pipeline {
                                     withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
                                         sh '''
                                             cd html/eg_customer_ang_v1
-                                            npm install -g @angular/cli@14.0.4
+                                           
                                             # Install project dependencies
                                             npm install
 
