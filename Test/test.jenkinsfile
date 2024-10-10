@@ -1,10 +1,9 @@
-
 def branchname = 'V_6_1'
 
 pipeline {
     agent any
     tools {
-          jdk 'jdk14'
+        jdk 'jdk14'
         jdk 'jdk17'      
         nodejs 'nodejs14'
     }
@@ -13,33 +12,38 @@ pipeline {
 /**
   STAGE 1.Deleting Pipeline Workspace
 */
-    stage('Preparing for upload') {
+        stage('Preparing for upload') {
             steps {
-                script
-                {
+                script {
                     cleanWs()
                 }
             }
         }
 
-    stage('Creating PHP patch') {
-        
+        stage('Creating PHP patch') {
             steps {
-            sh '''
+                // Display node version
+                sh '''
                 node -v
                 '''
-                 withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
+                
+                // Set JAVA_HOME and PATH for JDK 14
+                withEnv(["JAVA_HOME=${tool 'jdk14'}", "PATH+JAVA=${tool 'jdk14'}/bin"]) {
                     sh '''
-                java -version
-                '''
-                 }
-                withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                    echo "Using JDK 14"
+                    java -version
+                    '''
+                }
+                
+                // Set JAVA_HOME and PATH for JDK 17
+                withEnv(["JAVA_HOME=${tool 'jdk17'}", "PATH+JAVA=${tool 'jdk17'}/bin"]) {
                     sh '''
-                java -version
-                '''
+                    echo "Using JDK 17"
+                    java -version
+                    '''
                 }
             }
-    }
+        }
     }
     post {
         success {
