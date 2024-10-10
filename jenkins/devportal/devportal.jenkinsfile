@@ -1,0 +1,178 @@
+/**
+
+**/
+def branchname = 'V_6_1'
+def buildStatus = true
+def attachment = false
+// common jars
+
+pipeline {
+    agent any
+
+    tools {
+        
+        nodejs 'nodejs14'
+    }
+    
+    
+    stages {
+/**
+  STAGE 1.Deleting Pipeline Workspace
+*/
+    stage('Preparing for upload') {
+            steps {
+                script
+                {
+                    cleanWs()
+                }
+            }
+        }
+/**
+  STAGE 2. Doing Java Repos from git and cvs  Checkout
+*/
+        stage('Code checkout for Jersey And Php') {
+            parallel {
+                
+                stage('PHP checkout') {
+                    
+                    steps {
+                        sh '''
+                           mkdir html
+                          '''
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                          repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                          repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: "${branchname}", useHeadIfNotFound: false],
+                          modules: [
+                         
+                          [localName: 'html/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]],
+                          skipChangeLog: false]
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+/**
+   STAGE 5.Running 
+*/
+        stage('Building angular services') {
+                        
+                        steps {
+                                script {
+                                    withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                        sh '''
+                                            cd html/eg_customer_ang_v1
+                                            # Install project dependencies
+                                            npm install
+
+                                            # Build the project
+                                            ng build --configuration=ehappify --output-path=dist/devportal --base-href /devportal/ --deploy-url /devportal/
+                                            # Move the wallet and customer folders to the html directory
+                                            mv dist/devportal ../devportal                                           
+                                            # Navigate back to the html directory and delete eg_customer_ang_v1
+                                            cd ..
+                                            rm -rf eg_customer_ang_v1
+                                        '''
+                                    }
+                                }
+                        }
+            
+                    }
+        
+
+/**
+   STAGE 7.Creating Patch 
+*/
+       
+                
+        
+
+        stage('Creating ANGULAR patch') {
+               
+                steps {
+                sh '''
+                   
+                    find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                    zip -r html.zip html/*
+                    '''
+                }
+        
+        }
+        
+ /** stage 8 :  Deploying On Server
+ */
+        stage('Deploying on server') {
+            
+                       
+                            steps {
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '',
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '',
+                            remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+
+                            sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                            transfers: [sshTransfer(cleanRemote: false, excludes: '',
+                            execCommand: '''cd /home/devops
+                                cd /var/www/html
+                                
+                                cd /home/devops
+                                sudo unzip -o html.zip -d /var/www/
+                                sudo chmod -R 777 /var/www/html/devportal/
+                              
+							       sudo rm -rf /home/devops/html.zip'''
+                                ,
+                            execTimeout: 0, flatten: false, makeEmptyDirs: false,
+                            noDefaultExcludes: false, patternSeparator: '[, ]+',
+                            remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')],
+                            usePromotionTimestamp: false, useWorkspaceInPromotion: false,
+                            verbose: true)])
+                            }
+                }
+
+           
+        
+      
+
+
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}
+// if (buildStatus == 'SUCCESS') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} SUCCESSFULLY DEPLOYED ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is successfully deployed to the Smoke server. Please verify your changes."
+// }
+//  else if (buildStatus == 'UNSTABLE') {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} DEPLOYED ON Smoke IS UNSTABLE"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname}  deployed on Smoke server with latest checked-in changes is unstable. Please find the attachments for logs and take action accordingly"
+//     attachment = true
+//  }
+//  else
+//  {
+//     subject = "RC_3_BUILD_#${BUILD_NUMBER} FOR SPR ${branchname} FAILED TO DEPLOY ON Smoke"
+//     env.content = "RC_3_BUILD_#${BUILD_NUMBER} for SPR ${branchname} with latest checked-in changes is failed to deploy on the Smoke server. Please find the attachments for logs"
+//     attachment = true
+//  }
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'

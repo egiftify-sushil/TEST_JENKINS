@@ -1,0 +1,59 @@
+
+def branchname = 'V_6_1'
+
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk17'
+        jdk 'jdk14'
+        nodejs 'nodejs14'
+    }
+   
+    stages {
+/**
+  STAGE 1.Deleting Pipeline Workspace
+*/
+    stage('Preparing for upload') {
+            steps {
+                script
+                {
+                    cleanWs()
+                }
+            }
+        }
+
+    stage('Creating PHP patch') {
+        
+            steps {
+            sh '''
+                node -v
+                '''
+                    sh '''
+                java -v
+                '''
+                withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                    sh '''
+                java -v
+                '''
+                }
+            }
+    }
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = false
+            }
+        }
+    }
+}

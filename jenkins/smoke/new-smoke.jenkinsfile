@@ -250,6 +250,7 @@ pipeline {
                                     withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
                                         sh '''
                                             cd html/eg_customer_ang_v1
+                                           
                                             # Install project dependencies
                                             npm install
 
@@ -435,12 +436,12 @@ pipeline {
                             cd /var/www/html/shfiles
                             . killSchedularProcess.sh
                             cd /opt/tomcat/bin
-                            sudo ./shutdown.sh 
+                            sudo systemctl stop tomcat.service
                             sleep 15
                             sudo systemctl start tomcat.service
                             sleep 15
-                            cd /var/www/html/shfiles
-                            . schedularProcess.sh
+                           cd /var/www/html/shfiles
+						   sudo ./schedularProcess.sh
 
 
                                         ''',
@@ -485,7 +486,8 @@ pipeline {
               stage('OPS') 
               {
                 when { expression { params.OPS_RELEASE } }
-                steps {sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
+                steps {
+                    sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
                             transfers: [sshTransfer(cleanRemote: false, excludes: '',
                             execCommand: '''
                             cd /home/devops

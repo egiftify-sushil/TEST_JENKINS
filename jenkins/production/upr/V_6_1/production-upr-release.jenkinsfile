@@ -1,337 +1,478 @@
 /**
-THiS FILE UPLOADs CODE ON MARINER 1, APOLLO 1 & EXPLORER
+THIS FILE UPLOADS CODE ON MARINER 1 APOLLO 1 EXPLORER
 
-UPR RELEASE Pipeline for mariner 1 and TEST_SERVER.
-We can upload to any codebase like java OR Php OR Delivery depending upon the use choice
-There are 9 main stages involved in releasing the upr
-STAGE 1:-  Verifying upr param and deleting pipeline workspace
-STAGE 2:-  Removing instance from taget groups
-STAGE 3:-  Taking backup of old codes on servers in /var/devops/backups/{codbase}-uprNumber.zip
-STAGE 4:-  Java main branch checkout and builds for partial build process.
-STAGE 5:-  Doing patch checkout of java,php and scheduler
-STAGE 6:-  Creating patch (Runnig maven build,php composer and code packaging)
-STAGE 7:-  Deploying patch on servers.
-STAGE 8:-  CDN sync & Invalidating assets 
-STAGE 9:-  Adding Mariner 1 and Apollo 1 on TG & removing Apollo2 and Mariner 2 from TG. 
+SPR RELEASE Pipeline For MARINER 1 and APOLLO 1.
+We can upload to any codebase like java OR Php OR Delivery depending upon the user choice
+There are 10 main stages involved in releasing the SPR
+STAGE 1:-  Verifying SPR param and deleting pipeline workspace.
+STAGE 2:-  Removing instance from taget groups.(MARINER 1 & APOLLO 1) {Parallel}
+ Taking backup of old codes on servers in /var/devops/backups/{codebase}-uprNumber.zip. {Parallel}
+STAGE 3:-  Code checkout from SPR branch (all selected projects) using CVSSCM plugin configured on the jenkins. {Parallel}
+STAGE 4:-  Code checkout from Git (6.1.0 Branch)
+STAGE 5:-  Running maven build on services and scheduler. Also running the composer to install yii2 framework {Parallel} and angular
+STAGE 6:-  Creating patch (code packaging). {Parallel}
+STAGE 7:-  Deploying patch on production servers (MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin.{Parallel}
+STAGE 8:-  CDN syncing & invalidating assets using aws CLI.
+STAGE 9:-  Adding Mariner 1 and Apollo 1 on TG & removing Apollo2 and Mariner 2 from TG.{Parallel}
+STAGE 10:- Sending Email notification to developers.
 
 PLUGINS USED:-
-sshPublisher:- To upload folder and to execute ssh script on remote server 
+sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
 def branchname = ""
-def uprNumber = "";
-def servers = "";
-def buildStatus = "SUCCESS";
-def attachment = false;
-pipeline {
+def gitbranch = ''
+def uprNumber = ''
+def servers = ''
+def buildStatus = 'SUCCESS'
+def attachment = false
+// common jars
+def springcommonRepos = [
+    'global_meta',
+    'jersey_object_library'
+]
+def springplatformRepos = [
+    'sp_dynamo_document',
+    'sp_mysql_application_entity',
+    'object_library',
+    'processing_system'
 
+]
+pipeline {
      /** Defining workspace for the node **/
-     agent {
-             node {
-		            label ''
-		            customWorkspace '/var/devops/upr/'
-         		 }
+    agent {
+        node {
+                    label ''
+                    customWorkspace '/var/devops/upr_testing/'
           }
+    }
     /**
      Setting jdk for java build
     */
-     tools {
-       jdk "jdk14"
-     }
+    tools {
+        jdk 'jdk14'
+        jdk 'jdk17'
+        nodejs 'nodejs14'
+    }
      /**
-       Params to define which codebase we want to upload 
+       Params to define which codebase we want to upload
      */
     parameters {
-        booleanParam(name: "MARINER", defaultValue: false)
-        booleanParam(name: "APOLLO", defaultValue: false)
-        booleanParam(name: "EXPLORER", defaultValue: false)
-        string(name: "UPR_NUMBER", defaultValue: '', description: 'Provide Upr Number')
-        string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
+        // new bool value for ops
+        booleanParam(name: 'OPS', defaultValue: false)
+        booleanParam(name: 'MARINER', defaultValue: false)
+        booleanParam(name: 'APOLLO', defaultValue: false)
+        booleanParam(name: 'EXPLORER', defaultValue: false)                
+        booleanParam(name: "APOLLOANGULAR", defaultValue: false)
+        string(name: 'GIT_BRANCH_NAME', defaultValue: '', description: 'Provide GIT Branch Name')
+        string(name: 'UPR_NUMBER', defaultValue: '', description: 'Provide UPR Number')
+		string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Main Branch Name')
+		
     }
-    stages {        
+    stages {
 /**
-  STAGE 1.Verifying upr param and Deleting Pipeline Workspace
+  STAGE 1.Verifying Spr param and Deleting Pipeline Workspace
 */
-         stage('Initiate UPR Release'){
-             steps {
-             		 script {
-           			    if (params.UPR_NUMBER == '' || params.BRANCH_NAME == '') {
-					         currentBuild.result = 'ABORTED'
-					         error('UPR NUMBER Not Defined…')
-					     }else{
-					          uprNumber = params.UPR_NUMBER;
-					          branchname = params.BRANCH_NAME;
-					          if(params.MARINER)
-					            servers = "MARINER 1 ";
-					          if(params.APOLLO)  
-					            servers = servers+"APOLLO 1 ";
-					          if(params.EXPLORER)
-					            servers = servers+"EXPLORER";
-					          cleanWs()
-					          currentBuild.description = "UPR "+params.UPR_NUMBER
-					     }
-                       }
-                   }
-             }
+        stage('Initiate SP Release') {
+            steps {
+                script {
+                    if (params.UPR_NUMBER == '') {
+                        currentBuild.result = 'ABORTED'
+                        error('UPR NUMBER Not  Defined�')
+                         }else {
+                        gitbranch = params.GIT_BRANCH_NAME
+                        uprNumber = params.UPR_NUMBER
+						branchname = params.BRANCH_NAME;
+                        if (params.OPS) {
+                                servers = 'TEST_SERVER'
+                        }
+                        if (params.MARINER) {
+                                servers = 'TEST_SERVER'
+                        }
+                        if (params.APOLLO) {
+                                servers = servers + 'TEST_SERVER '
+                        }
+                        if (params.EXPLORER) {
+                                servers = servers + 'TEST_SERVER'
+                        }
+                        if (params.APOLLOANGULAR) {
+                                servers = 'TEST_SERVER'
+                        }
+                        cleanWs()
+                        currentBuild.description = 'UPR ' + params.SPR_NUMBER
+                    }
+                }
+            }
+        }
 /**
   STAGE 2. Removing instance from taget groups.
            AWS CLI configured on jenkins used to perform this task
  */
-    //    stage('Detach Server'){
-    //   	  parallel{
-	//          stage('Removing APOLLO 1 From TG'){
+    //    stage('Detach Servers From TG'){
+    //         parallel{
+    //          stage('Removing APOLLO 1 From TG'){
     //           when { expression { params.APOLLO } }
-    //                steps 
+    //                steps
     //                {
-	// 		             sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963\
-   	// 					 --targets Id=i-09af9ac9afcd3554c'
-   						 
-   	// 					sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e\
-   	// 					 --targets Id=i-09af9ac9afcd3554c'
-   						
-   	// 					sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee\
-   	// 					 --targets Id=i-09af9ac9afcd3554c'
-   					
-	// 					sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a\
-   	// 					 --targets Id=i-09af9ac9afcd3554c' 
-   						 
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                        sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                        sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn  arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a\
+    //                         --targets Id=i-09af9ac9afcd3554c'
+
     //                 }
     //             }
-	//           stage('Removing MARINER 1 From TG'){
+    //           stage('Removing MARINER 1 From TG'){
     //             when { expression { params.MARINER } }
-    //                 steps 
+    //                 steps
     //                 {
-	// 		            sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2\
-   	// 					 --targets Id=i-0a06ca56b6263d446'
-
-	// 					sh 'aws elbv2 deregister-targets \
-   	// 					 --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/Mariner-Poynt-App/525c6909a28d1420\
-   	// 					 --targets Id=i-0a06ca56b6263d446'
+    //                     sh 'aws elbv2 deregister-targets \
+    //                         --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2\
+    //                         --targets Id=i-0a06ca56b6263d446'
     //                 }
-    //             }   
-	// 		 }
-	// 	  }
-             
+    //             }
+    //          }
+    //       }
+
 /**
- STAGE 3. Taking backup of old codes on servers in /var/devops/backups/ dir
+ . Taking backup of old codes on servers in /var/devops/backups/ dir
           ssh plugin used to excute the ssh  command on all remote servers
 */
-    // stage('Backup'){
-    //  parallel{
-    //    stage('MARINER 1'){
-    //     when { expression { params.MARINER } }
-    //        steps {
-                 
-	// 	          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-	// 	          transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	          execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf webapps*
-	// 				cd /var/lib/tomcat9/webapps
-	// 				sudo zip -r   /var/devops/backups/webapps-${uprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" , 
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-	// 				noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-	// 				remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         } 
-    //         stage('EXPLORER'){
-    //          when { expression { params.EXPLORER } }
-    //            steps {
-	// 		          sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', transfers: [sshTransfer(cleanRemote: false, 
-	// 		          excludes: '',
-	// 		          execCommand: """cd /var/devops/backups
-	// 					sudo rm -rf delivery*
-	// 					cd  /opt/tomcat9/webapps
-	// 					sudo zip -r  /var/devops/backups/delivery-${uprNumber}.zip eg_scheduler eg_scheduler_services
-	// 					""" , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-	// 					patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 					removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 					useWorkspaceInPromotion: false, verbose: true)])
-	// 		          }
-    //        }
-    //         stage('APOLLO 1'){
-    //         when { expression { params.APOLLO } }
-    //          steps {
-	// 	           sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-	// 	           transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	// 	           execCommand: """cd /var/devops/backups
-	// 				sudo rm -rf html*
-	// 			    cd /var/www/html
-	// 				sudo zip -r /var/devops/backups/html-${uprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
-	// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-	// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-	// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
-	// 				useWorkspaceInPromotion: false, verbose: true)])
-	// 	          }
-    //         }  
-    //       }
-    //      } 
+//    
+
 /**
- STAGE 4. Doing Checkout of JAVA Main Branch code using CVSSCM plugin configured on the jenkins.
-          Main branch code is required to perform the partial builds . Also we are creating jars
-          of the main services so that they can be used  as a dependency in the partial builds      
- */      
-       stage('Main Branch Code Checkout'){
-		       stages {
-		         stage('Services'){
-            	   when { expression { params.MARINER || params.EXPLORER } }
-	                 steps {
-				              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-				              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
-				              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
-				              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
-				              modules: [[localName: 'eg_objects', remoteName: 'eg_objects'], 
-				              [localName: 'eg_platform', remoteName: 'eg_platform'], 
-				              [localName: 'scheduler_base', remoteName: 'scheduler_base'], 
-				              [localName: 'eg_portal_services', remoteName: 'eg_portal_services'], 
-				              [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'], 
-				              [localName: 'eg_customer_services', remoteName: 'eg_customer_services'], 
-				              [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],
-				              [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services']]]]]], 
-				              skipChangeLog: false]
-			               }
-	                    }
-                 }
-		         stage('Build  Platform') {
-		             when { expression { params.MARINER || params.EXPLORER } }
-			               steps{
-			                      sh '''cd eg_objects
-										mvn clean
-										mvn install -U
-										cd ..
-										cd eg_platform
-										cd platform
-										mvn clean
-										mvn install -U
-										cd ..
-										mvn clean
-										mvn install -U 
-										cd ..
-										cd scheduler_base
-										mvn clean
-										mvn install -U
-										'''
-			                    } 
-		            }
-		           stage('Build Services') {
-			               parallel {
-				              		 stage('Portal Services') {
-				              		  when { expression { params.MARINER } }
-						                 steps {
-									             sh '''
-													cd eg_portal_services
-													mvn clean
-													mvn install -Dpackaging.type=jar -U
-													cd ..
-													rm -rf eg_portal_services
-													'''
-						                     }
-				                  		 }
-				                  	 stage('Customer Services') {
-				                  	  when { expression { params.MARINER } }
-					                      steps {
-								             sh '''
-												cd eg_customer_services
-												mvn clean
-												mvn install -Dpackaging.type=jar -U
-												cd ..
-												rm -rf eg_customer_services
-												'''
-					                     }
-				                   	}
-				                    stage('Lifeline Services') {
-				                     when { expression { params.MARINER } }
-					                      steps {
-								             sh '''
-												cd eg_lifeline_services
-												mvn clean
-												mvn install -Dpackaging.type=jar -U
-												cd ..
-												rm -rf eg_lifeline_services
-												'''
-					                     }
-				                   }
-				                   stage('Merchant Services') {
-				                    when { expression { params.MARINER } }
-				                      steps {
-							             sh '''
-											cd eg_merchant_services
-											mvn clean
-											mvn install -Dpackaging.type=jar -U
-											cd ..
-											rm -rf eg_merchant_services
-											'''
-				                     }
-				                   }
-				                    stage('Scheduler Services') {
-				                    when { expression { params.EXPLORER } }
-				                      steps {
-							             sh '''
-											cd eg_scheduler_services
-											mvn clean
-											mvn install -Dpackaging.type=jar -U
-											cd ..
-											rm -rf eg_scheduler_services
-											'''
-				                     }
-				                   }
-			                   }
-		                   }
-		              }  
-        	     } 
+ STAGE 3. Doing Checkout of SPR code using CVSSCM plugin configured on the jenkins.
+ */
+        stage('Code Checkout') {
+            parallel {
+                stage('Java  Checkout') {
+                    when { expression { params.MARINER ||  params.EXPLORER } }
+                    steps {
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber, useHeadIfNotFound: false],
+                            modules: [[localName: 'eg_objects', remoteName: 'eg_objects'],
+                            [localName: 'eg_platform', remoteName: 'eg_platform'],
+                            [localName: 'scheduler_base', remoteName: 'scheduler_base'],
+                            [localName: 'eg_portal_services', remoteName: 'eg_portal_services'],
+                            [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'],
+                            [localName: 'eg_customer_services', remoteName: 'eg_customer_services'],
+                            [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],
+                            [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services'],
+                            [localName: 'eg_scheduler', remoteName: 'eg_scheduler']]]]]],
+                            skipChangeLog: false]
+                        }
+                    }
+                }
+                stage('PHP Checkout') {
+                    when { expression { params.APOLLO } }
+                    steps {
+                        sh '''
+                           mkdir html
+                          '''
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
+                            repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber, useHeadIfNotFound: false],
+                            modules: [
+                            [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'],
+                            [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'],
+                            [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'],
+                            [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2'],
+                            [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]],
+                            skipChangeLog: false]
+                        }
+                    }
+                }
+
+                stage('Angular Repos Checkout') {
+                    when { expression { params.APOLLOANGULAR } }
+                    steps {
+                        sh 'mkdir -p angular'
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
+                        {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
+                            cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
+                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber,
+                            useHeadIfNotFound: false], modules: [
+                            [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
+                        }
+                    }
+                }
+            }
+        }
+    /**
+   STAGE 4.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework
+
+ */
+        stage('Code checkout for global meta and jersey object') {
+            parallel {
+                stage('Common Repos Checkout (Git)') {
+                    when { expression { params.MARINER ||  params.EXPLORER } }
+                    steps {
+                        script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springcommonRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                            $class: 'GitSCM',
+                                            branches: [[name: "${gitbranch}"]],
+                                            userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]]
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('OPS checkout ') {
+                    when { expression { params.OPS} }
+                    steps {
+                            script {
+                            withCredentials([string(credentialsId: 'GITURL', variable: 'GITURL')]) {
+                                springplatformRepos.each { repo ->
+                                    dir(repo) {
+                                        checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${gitbranch}"]],
+                                        userRemoteConfigs: [[url: "${GITURL}/${repo}.git"]]
+                                    ])
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 /**
-  STAGE 5.Doing Patch Checkout of java,php and scheduler
- */  	                        
-         stage('Patch Checkout'){
+   STAGE 5.Running Maven Build on Services,Scheduler and doing composer install on yii2 framework and Angular 
+
+ */
+                stage('Building Common Jars') {
+                    when { expression { params.MARINER || params.EXPLORER } }
+
+                    steps {
+                        script {
+                            
+                            // Define Maven commands
+                            def mavenCommands = [
+                            'mvn clean',
+                            'mvn install -U'
+                            ]
+                            // Execute springcommonRepos first
+                            springcommonRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml
+                                    // Execute Maven commands
+                                    withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """
+                                    ${command}
+                                    """
+                                    }
+                                    }
+                                }
+                            }
+                            // Define build steps
+                            def buildSteps = [
+                                ['name': 'eg_objects', 'path': 'eg_objects'],
+                                ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
+                                ['name': 'eg_platform', 'path': 'eg_platform'],
+                                ['name': 'scheduler_base', 'path': 'scheduler_base']
+                            ]
+                            // Execute buildSteps
+                            buildSteps.each { step ->
+                                dir(step.path) {
+                                    sh 'mvn clean'
+                                    sh 'mvn install -U'
+                                }
+                            }
+                        }
+                    }
+                }
+
+       
+                stage('Building Platform Repos') {
+                    when { expression { params.OPS } }
+                    steps {
+                        script {                            
+                            def mavenCommands = [
+                                'mvn clean install'
+                            ]
+                            springplatformRepos.each { repo ->
+                                dir(repo) {
+                                    // Replace artifact.egiftify-dev.com with 54.205.166.118 in pom.xml                            
+                                    // Execute Maven commands
+                                   withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                                    mavenCommands.each { command ->
+                                    sh """
+                                    ${command}
+                                    """
+                                    }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building MARINER services') {
+                    when { expression { params.MARINER } }
+                     parallel {
+                        stage('Build eg_portal_services') {
+                            steps {
+                                dir('eg_portal_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Build eg_customer_services') {
+                            steps {
+                                dir('eg_customer_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Build eg_lifeline_services') {
+                            steps {
+                                dir('eg_lifeline_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Build eg_merchant_services') {
+                            steps {
+                                dir('eg_merchant_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Build eg_scheduler_services') {
+                            steps {
+                                dir('eg_scheduler_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Build eg_scheduler') {
+                            steps {
+                                dir('eg_scheduler') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building EXPLORER services') {
+                    when { expression { params.EXPLORER } }
+                    parallel {
+                      stage('Building eg_scheduler_services for explorer') {
+                            steps {
+                                dir('eg_scheduler_services') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                        stage('Building eg_scheduler for explorer') {
+                            steps {
+                                dir('eg_scheduler') {
+                                    sh 'mvn clean package'
+                                }
+                            }
+                        }
+                    }
+                }
+              
+/**
+   STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
+*/
+        stage('Create Patch')
+        {
+            parallel {
+                stage('Creating Services Patch') {
+                    when { expression { params.MARINER } }
+                    steps {
+                        sh '''
+                                mkdir webapps
+                                mkdir webapps/eg_portal_services
+                                mkdir webapps/egCustomerServices
+                                mkdir webapps/es
+                                mkdir webapps/ROOT
+                                if [ -d "eg_portal_services" ]; then
+                                    cd eg_portal_services
+                                    unzip -o target/eg_portal_services.war -d ../webapps/eg_portal_services
+                                    cd ..
+                                fi
+                                if [ -d "eg_customer_services" ]; then
+                                    cd eg_customer_services
+                                    unzip -o target/eg_customer_services.war -d ../webapps/egCustomerServices
+                                    cd ..
+                                fi
+                                if [ -d "eg_lifeline_services" ]; then
+                                    cd eg_lifeline_services
+                                    unzip -o target/eg_lifeline_services.war -d ../webapps/ROOT
+                                    cd ..
+                                fi
+                                if [ -d "eg_merchant_services" ]; then
+                                    cd eg_merchant_services
+                                    unzip -o target/eg_merchant_services.war -d ../webapps/es
+                                    cd ..
+                                fi
+                         '''
+                        sh"zip -r webapps-${uprNumber}.zip webapps"
+                    }
+                }
+                stage('Creating Scheduler Patch') {
+                        when { expression { params.EXPLORER } }
+                        steps {
+                        sh '''
+                            if [ ! -d "deliverywebapps" ]; then
+                              mkdir deliverywebapps
+                            fi
+                                mkdir deliverywebapps/eg_scheduler_services
+                                mkdir deliverywebapps/eg_scheduler
+                                mkdir deliverywebapps/eg_scheduler/lib
+                                cd eg_scheduler_services
+                                unzip -o target/eg_scheduler_services.war -d ../deliverywebapps/eg_scheduler_services
+                                cd ..
+                                cd eg_scheduler
+                                cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
+                                cd ..
+                        '''
+                        sh"""
+                             cd deliverywebapps
+                             zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services
+                        """
+                        }
+                }
+
+                
+            }
+       }
+
+
+				
+/**
+ STAGE . Deploying Patch on servers(MARINER 1, EXPLORER 1, APOLLO 1) with the help of sshPublisher plugin
+ 
+*/
+stage('Patch Checkout'){
                parallel{
-	                 stage('Services Checkout'){
-	                  	when { expression { params.MARINER } }
-		                  steps {
-					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
-					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
-					              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false], 
-					              modules: [
-					              [localName: 'eg_portal_services', remoteName: 'eg_portal_services'],
-					              [localName: 'eg_customer_services', remoteName: 'eg_customer_services'],
-					              [localName: 'eg_lifeline_services', remoteName: 'eg_lifeline_services'],
-					              [localName: 'eg_merchant_services', remoteName: 'eg_merchant_services'],]]]]], 
-					              skipChangeLog: false]
-				               }
-		                   }
-	                    }
-	                   stage('Scheduler Checkout'){
-	                  	  when { expression { params.EXPLORER } }
-		                  steps {
-					              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-					              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: true, disableCvsQuiet: true, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: false, 
-					              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
-					              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
-					              modules: [
-					              [localName: 'eg_scheduler', remoteName: 'eg_scheduler']]]]]], 
-					              skipChangeLog: false]
-		                         }
-	                        }
-	                       }  
-	                      stage('Scheduler Services Checkout'){
-	                       when { expression { params.EXPLORER } }
-			                  steps {
-						              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-						              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: false, forceCleanCopy: false, legacy: true, pruneEmptyDirectories: true, 
-						              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true,
-						              repositoryItems: [[location: [$class: 'TagRepositoryLocation', tagName: uprNumber, useHeadIfNotFound: false], 
-						              modules: [
-						              [localName: 'eg_scheduler_services', remoteName: 'eg_scheduler_services'],]]]]], 
-						              skipChangeLog: false]
-			                         }
-		                        }
-	                       } 
+	                 
 	                  stage('PHP Checkout'){
 	                  	when { expression { params.APOLLO } }
 		                  steps {   
@@ -361,113 +502,83 @@ pipeline {
 		                         }
 	                        }
 	                     }  
+						 stage('Angular Repos Checkout') {
+                    when { expression { params.APOLLOANGULAR } }
+                    steps {
+                        sh 'mkdir -p angular'
+                        withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')])
+                        {
+                            checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false,
+                            cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false,
+                            repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password: "${CVSPASSWORD}",
+                            passwordRequired: true, repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: uprNumber,
+                            useHeadIfNotFound: false], modules: [
+                            [localName: 'angular/eg_customer_ang_v1', remoteName: 'eg_customer_ang_v1']]]]]], skipChangeLog: false]
+                        }
+                    }
+                }
                     }
                  }
-/**
-   STAGE 6.Creating Patch (Running maven build,php composer and code packaging)
- */  
-          stage('Create Patch'){
-                 parallel{
-                    stage('Creating Services Patch'){
-                      when { expression { params.MARINER} }
-                        steps {
-                          sh '''
-                            mkdir webapps
-                            mkdir webapps/ROOT
-			                mkdir webapps/es
-							mkdir webapps/egCustomerServices
-							mkdir webapps/eg_portal_services
-                            if [ -d "eg_portal_services" ]; then
- 								cd eg_portal_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_portal_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_portal_services-partial/WEB-INF/lib/eg_portal_*
-								cp -r target/eg_portal_services-partial/* ../webapps/eg_portal_services
-							    cd ..
-							fi
-							if [ -d "eg_customer_services" ]; then
- 								cd eg_customer_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_customer_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_customer_services-partial/WEB-INF/lib/eg_customer_*
-								cp -r target/eg_customer_services-partial/* ../webapps/egCustomerServices
-							    cd ..
-							fi
-							if [ -d "eg_lifeline_services" ]; then
- 								cd eg_lifeline_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_lifeline_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_lifeline_services-partial/WEB-INF/lib/eg_lifeline_*
-								cp -r target/eg_lifeline_services-partial/* ../webapps/ROOT
-							    cd ..
-							fi
-							if [ -d "eg_merchant_services" ]; then
- 								cd eg_merchant_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_merchant_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_merchant_services-partial/WEB-INF/lib/eg_merchant_*
-								cp -r target/eg_merchant_services-partial/* ../webapps/es
-							    cd ..
-							fi
-							zip -r webapps.zip webapps
-							'''
-							 sh"zip -r webapps-${uprNumber}.zip webapps"
-                        }
-                      }
-                      stage('Creating Scheduler Patch'){
-                        when { expression { params.EXPLORER} }
-                        steps {
-                          sh '''
-                             if [ ! -d "deliverywebapps" ]; then
-                              mkdir deliverywebapps
-                            fi
-                          	mkdir deliverywebapps/eg_scheduler_services
-                          	mkdir deliverywebapps/eg_scheduler
- 							mkdir deliverywebapps/eg_scheduler/lib
-                          	if [ -d "eg_scheduler_services" ]; then
- 								cd eg_scheduler_services
-								mvn clean
-								mvn package -DpartialbuildOutputPath=target -Ppartialbuild -U
-								rm -rf target/eg_scheduler_services-partial/WEB-INF/web.xml
-								rm -rf target/eg_scheduler_services-partial/WEB-INF/lib/eg_scheduler_services*
-								cp -r target/eg_scheduler_services-partial/* ../deliverywebapps/eg_scheduler_services
-							    cd ..
-							fi
-							cd eg_scheduler
-							mvn clean
-							mvn package
-							cp -r target/lib/* ../deliverywebapps/eg_scheduler/lib
-							cd ..
-							'''
-							 sh"""cd deliverywebapps
-							 zip -r ../delivery_webapps-${uprNumber}.zip eg_scheduler eg_scheduler_services"""
-                        }
-                      }
-                      stage('Creating PHP Patch'){
-                        when { expression { params.APOLLO} }
-                        steps {
-                          sh '''
-							cd html
-							cd eg_yii2_framework_v2
-							composer install
-							cd ..
-							cd ..
-							sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-							'''
-							sh"zip -r html-${uprNumber}.zip html/*"	
-                        }
-                      }
+            stage('Building Yii2 Framework and Angular Services'){
+                parallel{
+                     stage('Building Yii2 Framework ') {
+                    when { expression { params.APOLLO } }
+                    steps {
+                        sh''' 
+                             cd html
+                             cd eg_yii2_framework_v2
+                             composer install
+                            '''
                     }
-                 }
-/**
- STAGE 7. Deploying Patch on servers with the help of sshPublisher plugin
-*/ 
-          
-           stage('Deploy Patch'){
+                }
+                stage('Build Angular Services') {
+                    when {
+                        expression { params.APOLLOANGULAR }
+                    }
+                    steps {
+                        script {
+                            withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+                                sh '''
+                                   cd angular/eg_customer_ang_v1
+
+                                   # Install project dependencies                                   
+                                     npm install
+
+                                   # Build the project
+                                     ng build --configuration=production --output-path=dist/customer --base-href /customer/ --deploy-url /customer/
+                                     ng build --configuration=production --output-path=dist/wallet --base-href /wallet/ --deploy-url /wallet/
+
+                                   # Check if html directory exists and move the folders accordingly
+                                     if [ -d "../../html" ]; then
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     else
+                                     mkdir -p ../../html
+                                     cp -r dist/customer ../../html/
+                                     cp -r dist/wallet ../../html/
+                                     fi
+
+                                 '''
+                            }
+                        }
+                    }
+                }
+                }
+               }
+               stage('Creating PHP Patch Or Angular Patch') {
+                      when { expression { params.APOLLO || params.APOLLOANGULAR } }
+
+                        steps {
+                        script {                           
+                               sh '''
+                                find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                                '''
+                                sh "zip -r html-${uprNumber}.zip html/*"                   
+                        }
+                    }
+                }
+
+            stage('Deploy Patch'){
                  parallel{
                     stage('MARINER 1'){
                       when { expression { params.MARINER} }
@@ -556,7 +667,7 @@ pipeline {
 					       }
                       }
                       stage('APOLLO 1'){
-                        when { expression { params.APOLLO} }
+                       when { expression { params.APOLLO || params.APOLLOANGULAR } }
 	                        steps {
 	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
 	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '',
@@ -579,141 +690,162 @@ pipeline {
 							verbose: true)])
                           }
                        }
+					   stage('OPS')
+                       {
+                        when { expression { params.OPS } }
+                        steps {
+                           sshPublisher(                       
+                                    publishers:[
+                                        sshPublisherDesc(
+                                            configName: 'TEST_SERVER',
+                                            transfers:[
+                                                sshTransfer(
+                                                    cleanRemote: false,
+                                                    excludes: '',
+                                                    execCommand: '',
+                                                    execTimeout: 0,
+                                                    flatten: false,
+                                                    makeEmptyDirs: false,
+                                                    noDefaultExcludes: false,
+                                                    patternSeparator: '[, ]+',
+                                                    remoteDirectory: 'processing_system',
+                                                    remoteDirectorySDF: false,
+                                                    removePrefix: 'processing_system/target',
+                                                    sourceFiles: 'processing_system/target/ops.jar')],
+                                            usePromotionTimestamp: false,
+                                            useWorkspaceInPromotion: false,
+                                            verbose: true)])
+                       }
+                       }
                     }
                }
+
+
 /**
   STAGE 8.Syncing & Invalidating assets using aws CLI
-*/  
-        //  stage('CDN Sync')
-		//  {
-		//   when { expression { params.APOLLO} }
-        //    steps {
-        // 	 sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER', 
-        // 	 transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-        // 	 execCommand: '''cd /home/devops
-		// 			if [ ! -d "common" ]; then
-		// 			     sudo mkdir common
-		// 			     sudo mkdir common/css
-		// 			     sudo mkdir common/js
-		// 			fi
-		// 			cd /var/www/html
-		// 			find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
-		// 			find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
-		// 			sudo rm -rf /home/devops/common/js/awss3.js
-		// 			cd eg_yii2_framework_v2/egiftify_extensions
-		// 			sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
-		// 			sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
-		// 			cd /var/www/html
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
-		// 			sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
-		// 			sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
-		// 			sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
-		// 			sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
-		// 			sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
-		// 			sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
-		// 			sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
-		// 			sudo rm -rf /home/devops/common/css/*
-		// 			sudo rm -rf /home/devops/common/js/*''',  
-		// 			execTimeout: 0, flatten: false, 
-		// 			makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
-		// 			remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-		// 			usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: true)])
-		// 	       }
-		// 	  }
-              
-/**
- STAGE 9. Adding and Removing Server to TG
-*/  
-            //  stage('Attach Server'){
-	        //          parallel{     
-			// 	                stage('Adding APOLLO 1 Removing APOLLO 2')
-			// 	                {
-			// 	                 when { expression { params.APOLLO} }
-			// 	                   steps{
-			// 			        	 sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
-			// 					          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
-			// 					          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
-			// 					          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
-			// 						      sleep 10
-			// 						      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
-			// 						      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
-			// 						      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
-			// 						      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
-			// 							}
-			// 	                }
-				                
-			// 	                stage('Adding MARINER 1 Removing MARINER 2')
-			// 	                {
-			// 	                  when { expression { params.MARINER} }
-			// 	                   steps{
-			// 			        	   sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
-			// 						   		aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/Mariner-Poynt-App/525c6909a28d1420 --targets Id=i-0a06ca56b6263d446
-			// 					          sleep 10
-			// 						      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce
-			// 							  aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/Mariner-Poynt-App/525c6909a28d1420 --targets Id=i-0202096e205e489ce'''	 
-			// 				   }
-			// 	                }
-			// 	              }
-			// 	      } 
-              }  
-         	post {
-		         success {
-		                    script{
-		                       buildStatus = "SUCCESS"
-		                    }
-					     }   
-			     unstable {
-				          script{
-				           	   buildStatus = "UNSTABLE"
-				          }
-		         }
-		         failure {
-			             script{
-				          	   buildStatus = "FAILED"
-			             }
-                 }
-             }      
-       }
- 
+**/
+//  stage('CDN Sync')
+// 		   {
+// 		     when { expression { params.APOLLO} }
+//                steps {
+// 		        sshPublisher(publishers: [sshPublisherDesc(configName: 'Apollo1', 
+// 		        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''cd /home/devops
+// 				if [ ! -d "common" ]; then
+// 				     sudo mkdir common
+// 				     sudo mkdir common/css
+// 				     sudo mkdir common/js
+// 				fi
+// 				cd /var/www/html
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} /home/devops/common/css/ \\;
+// 				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components  eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} /home/devops/common/js/ \\;
+// 				sudo rm -rf /home/devops/common/js/awss3.js
+// 				cd eg_yii2_framework_v2/egiftify_extensions
+// 				sudo aws s3 cp --recursive onboarding/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive onboarding/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive egiftify/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive egiftify/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive payment/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive commonAssets/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive commonAssets/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive payment/images/ s3://egiftifyprod/public/images/common/
+// 				sudo aws s3 cp --recursive onboarding/images/ s3://egiftifyprod/public/images/common/
+// 				cd /var/www/html
+// 				sudo aws s3 cp --recursive eg_customer_yii2/js/ s3://egiftifyprod/public/js/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/js/ s3://egiftifyprod/public/js/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/js/ s3://egiftifyprod/public/js/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/js/ s3://egiftifyprod/public/js/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/js/ s3://egiftifyprod/public/js/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/css/ s3://egiftifyprod/public/css/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/css/ s3://egiftifyprod/public/css/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/css/ s3://egiftifyprod/public/css/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/css/ s3://egiftifyprod/public/css/merchant/
+// 				sudo aws s3 cp --recursive /home/devops/common/css/ s3://egiftifyprod/public/css/common/
+// 				sudo aws s3 cp --recursive eg_customer_yii2/images/ s3://egiftifyprod/public/images/marketplace/
+// 				sudo aws s3 cp --recursive eg_staff_yii2/images/ s3://egiftifyprod/public/images/staff/
+// 				sudo aws s3 cp --recursive eg_reseller_yii2/images/ s3://egiftifyprod/public/images/reseller/
+// 				sudo aws s3 cp --recursive eg_merchant_yii2/images/ s3://egiftifyprod/public/images/merchant/
+// 				sudo aws cloudfront create-invalidation --distribution-id E22WMQKERMKCSE --paths "/js/*" "/css/*" "/images/*"
+// 				sudo rm -rf /home/devops/common/css/*
+// 				sudo rm -rf /home/devops/common/js/*''',  
+// 				execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+// 				patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
+// 				removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false, 
+// 				useWorkspaceInPromotion: false, verbose: true)])
+// 		      }
+// 			}
+// /**
+//  STAGE 9. Adding and Removing Server to TG
+// */
+    //    stage('Attach Server to TG'){
+    //              parallel{     
+	// 		                stage('Adding APOLLO 1 Removing APOLLO 2')
+	// 		                {
+	// 		                 when { expression { params.APOLLO} }
+	// 		                   steps{
+			                   		
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-09af9ac9afcd3554c
+	// 							          aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-09af9ac9afcd3554c
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/ApolloTG/6d4a1efc659bc963 --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/equinoxTG443/c5cb9ccbf35c210e --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DIGITALGIFTCARDMANAGERTG/a84a1f3691ab0eee --targets Id=i-0dd0036049996f55a
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/DigitalGiftManagerTG/02c5aa89247e4c6a --targets Id=i-0dd0036049996f55a'''	 
+								  
+	// 							   }
+	// 		                }
+			                
+	// 		                stage('Adding MARINER 1 Removing MARINER 2')
+	// 		                {
+	// 		                  when { expression { params.MARINER} }
+	// 		                   steps{
+	// 				        	    sh '''aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0a06ca56b6263d446
+	// 							          sleep 10
+	// 								      aws elbv2 deregister-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:347638288157:targetgroup/MarinerELBTG/29560997cb33d2d2 --targets Id=i-0202096e205e489ce'''	 
+	// 							   }
+	// 		                }
+	// 		              }
+	// 		      } 
+    }
+    post {
+        success {
+            script {
+                buildStatus = 'SUCCESS'
+            }
+        }
+        unstable {
+            script {
+                buildStatus = 'UNSTABLE'
+            }
+        }
+        failure {
+            script {
+                buildStatus = 'FAILED'
+            }
+        }
+    }
+}
+
  /**
   STAGE 10. Sending Email notification to developers
  */
-
-
-//  if(buildStatus == "SUCCESS")
-//  {
-//    subject = "UPR ${uprNumber} SUCCESSFULLY DEPLOYED ON ${servers}";
-//     env.content = "UPR ${uprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
+//  if (buildStatus == 'SUCCESS') {
+//     subject = "SPR ${uprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
+//     env.content = "SPR ${uprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
 //  }
-//  else if(buildStatus == "UNSTABLE")
-//  {
-//     subject = "UPR ${uprNumber} DEPLOYED ON ${servers} IS UNSTABLE";
-// 	env.content = "UPR ${uprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
-//  	attachment = true;
-//  } 
+//  else if (buildStatus == 'UNSTABLE') {
+//     subject = "SPR ${uprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
+//     env.content = "SPR ${uprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+//     attachment = true
+//  }
 //  else
 //  {
-//     subject = "UPR ${uprNumber} FAILED TO DEPLOY ON ${servers}";
-// 	env.content = "UPR ${uprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
-//  	attachment = true;
-//  } 
- 
-//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: '$DEFAULT_RECIPIENTS'
- 
- 
-         
+//     subject = "SPR ${uprNumber} FAILED TO DEPLOY ON ${servers}"
+//     env.content = "SPR ${uprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+//     attachment = true
+//  }
+
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+

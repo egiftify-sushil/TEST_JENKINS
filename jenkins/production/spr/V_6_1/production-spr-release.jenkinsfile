@@ -141,99 +141,6 @@ pipeline {
     //          }
     //       }
 
-/**
- . Taking backup of old codes on servers in /var/devops/backups/ dir
-          ssh plugin used to excute the ssh  command on all remote servers
-*/
-//    stage('Backup'){
-//      parallel{
-//        stage('MARINER 1'){
-//         when { expression { params.MARINER } }
-//            steps {
-//                       sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-//                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
-//                       execCommand: """cd /var/devops/backups
-//                     sudo rm -rf webapps*
-//                     cd /var/lib/tomcat9/webapps
-//                     sudo zip -r   /var/devops/backups/webapps-${sprNumber}.zip  ROOT es eg_portal_services egCustomerServices""" ,
-//                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-//                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-//                     removePrefix: '', sourceFiles: '')],
-//                     usePromotionTimestamp: false,
-//                     useWorkspaceInPromotion: false, verbose: true)])
-//                   }
-//             }
-//             stage('EXPLORER'){
-//              when { expression { params.EXPLORER } }
-//                steps {
-//                       sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-//                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
-//                        execCommand: """cd /var/devops/backups
-//                         sudo rm -rf delivery*
-//                         cd /var/lib/tomcat9/webapps
-//                         sudo zip -r  /var/devops/backups/delivery-${sprNumber}.zip eg_scheduler/* eg_scheduler_services/*
-//                         """ , execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-//                         patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-//                         removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-//                         useWorkspaceInPromotion: false, verbose: true)])
-//                       }
-//            }
-//             stage('APOLLO 1'){
-//             when { expression { params.APOLLO } }
-//              steps {
-//                    sshPublisher(publishers: [sshPublisherDesc(configName: 'TEST_SERVER',
-//                    transfers: [sshTransfer(cleanRemote: false, excludes: '',
-//                     execCommand: """cd /var/devops/backups
-//                     sudo rm -rf html*
-//                     cd /var/www/html
-//                     sudo zip -r /var/devops/backups/html-${sprNumber}.zip  eg_customer_yii2/* eg_reseller_yii2/* eg_staff_yii2/* eg_merchant_yii2/* eg_yii2_framework_v2/* -x 'eg_customer_yii2/runtime/*' 'eg_reseller_yii2/runtime/*' 'eg_staff_yii2/runtime/*' 'eg_merchant_yii2/runtime/*' 'eg_yii2_framework_v2/runtime/*'""" ,
-//                     execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false,
-//                     patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false,
-//                     removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-//                     useWorkspaceInPromotion: false, verbose: true)])
-//                   }
-//             }
-//              stage('Backup') {
-//             steps {
-//                 sshPublisher(
-//                     publishers: [
-//                         sshPublisherDesc(
-//                             configName: 'TEST_SERVER',
-//                             transfers: [
-//                                 sshTransfer(
-//                                     cleanRemote: false,
-//                                     excludes: '',
-//                                     execCommand: """
-//                                     # Create backup directory if not exists
-//                                     sudo cd /var/devops/backups
-
-//                                     # Backup Spring project ops.jar
-//                                     sudo cp /var/spring_project/ops.jar /var/devops/backups/ops_backup.jar
-//                                     sudo zip -r  /var/devops/backups/spring_backup.zip
-//                                     cd ..
-
-//                                     """,
-//                                     execTimeout: 0,
-//                                     flatten: false,
-//                                     makeEmptyDirs: false,
-//                                     noDefaultExcludes: false,
-//                                     patternSeparator: '[, ]+',
-//                                     remoteDirectory: '',
-//                                     remoteDirectorySDF: false,
-//                                     removePrefix: '',
-//                                     sourceFiles: ''
-//                                 )
-//                             ],
-//                             usePromotionTimestamp: false,
-//                             useWorkspaceInPromotion: false,
-//                             verbose: true
-//                         )
-//                     ]
-//                 )
-//             }
-//         }
-//           }
-//          }
 
 /**
  STAGE 3. Doing Checkout of SPR code using CVSSCM plugin configured on the jenkins.
@@ -882,21 +789,21 @@ pipeline {
  /**
   STAGE 10. Sending Email notification to developers
  */
- if (buildStatus == 'SUCCESS') {
-    subject = "SPR ${sprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
-    env.content = "SPR ${sprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
- }
- else if (buildStatus == 'UNSTABLE') {
-    subject = "SPR ${sprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
-    env.content = "SPR ${sprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
-    attachment = true
- }
- else
- {
-    subject = "SPR ${sprNumber} FAILED TO DEPLOY ON ${servers}"
-    env.content = "SPR ${sprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
-    attachment = true
- }
+//  if (buildStatus == 'SUCCESS') {
+//     subject = "SPR ${sprNumber} SUCCESSFULLY DEPLOYED ON ${servers}"
+//     env.content = "SPR ${sprNumber} is successfully deployed on ${servers}. Testing on the servers is underway"
+//  }
+//  else if (buildStatus == 'UNSTABLE') {
+//     subject = "SPR ${sprNumber} DEPLOYED ON ${servers} IS UNSTABLE"
+//     env.content = "SPR ${sprNumber} deployed on ${servers} is unstable. Please find the attachments for logs and take action accordingly"
+//     attachment = true
+//  }
+//  else
+//  {
+//     subject = "SPR ${sprNumber} FAILED TO DEPLOY ON ${servers}"
+//     env.content = "SPR ${sprNumber} is unstable and failed to deploy on ${servers}. Please find the attachments for logs"
+//     attachment = true
+//  }
 
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
 
