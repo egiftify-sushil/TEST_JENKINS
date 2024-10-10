@@ -29,11 +29,11 @@ pipeline {
                 node -v
                 '''
                     sh '''
-                java -v
+                java -version
                 '''
                 withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                     sh '''
-                java -v
+                java -version
                 '''
                 }
             }
