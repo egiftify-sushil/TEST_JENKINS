@@ -4,8 +4,8 @@ def branchname = 'V_6_1'
 pipeline {
     agent any
     tools {
-        jdk 'jdk17'
-        jdk 'jdk14'
+          jdk 'jdk14'
+        jdk 'jdk17'      
         nodejs 'nodejs14'
     }
    
@@ -28,9 +28,11 @@ pipeline {
             sh '''
                 node -v
                 '''
+                 withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                     sh '''
                 java -version
                 '''
+                 }
                 withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
                     sh '''
                 java -version
