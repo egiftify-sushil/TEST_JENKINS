@@ -1,5 +1,3 @@
-def branchname = 'V_6_1'
-
 pipeline {
     agent any
     tools {
@@ -9,9 +7,6 @@ pipeline {
     }
    
     stages {
-/**
-  STAGE 1.Deleting Pipeline Workspace
-*/
         stage('Preparing for upload') {
             steps {
                 script {
@@ -28,7 +23,7 @@ pipeline {
                 '''
                 
                 // Set JAVA_HOME and PATH for JDK 14
-                withEnv(["JAVA_HOME=${tool 'jdk14'}", "PATH+JAVA=${tool 'jdk14'}/bin"]) {
+                withEnv(["JAVA_HOME=${tool 'jdk14'}", "PATH=${tool 'jdk14'}/bin:$PATH"]) {
                     sh '''
                     echo "Using JDK 14"
                     java -version
@@ -36,7 +31,7 @@ pipeline {
                 }
                 
                 // Set JAVA_HOME and PATH for JDK 17
-                withEnv(["JAVA_HOME=${tool 'jdk17'}", "PATH+JAVA=${tool 'jdk17'}/bin"]) {
+                withEnv(["JAVA_HOME=${tool 'jdk17'}", "PATH=${tool 'jdk17'}/bin:$PATH"]) {
                     sh '''
                     echo "Using JDK 17"
                     java -version
