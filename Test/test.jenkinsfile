@@ -17,7 +17,7 @@ sshPublisher:- To upload folder and to execute ssh script on remote server
 CVSSCM:- To checkout the code from repository server
 
 **/
-def branchname = "V_6_1"
+def branchname = "V_6_0"
 //def branchname = "UPR_V_5_4_16"
 def attachment = false;
 def buildStatus = "SUCCESS";
