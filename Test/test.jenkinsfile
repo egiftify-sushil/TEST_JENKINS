@@ -96,7 +96,7 @@ pipeline {
                }  
 /** 
   STAGE 3.Running Maven Build on Platform (objects,platform,scheduler)
-*/         stage('Build Platform') {
+*/         stage('java -version') {
               steps{
                 sh '''java -version'''
               }
