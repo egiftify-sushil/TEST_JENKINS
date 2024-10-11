@@ -197,6 +197,14 @@ pipeline {
             stages { 
                 stage('Building global meta and jersey object') {
                     parallel {
+                        stage('Java 14') {
+                            sh """java -version"""
+                        }
+                          stage('Java 17') {
+                            withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
+                            sh """java -version"""
+                            }
+                        }
                         stage('Building Common Spring Jars') {
                             when {
                                 expression { params.JERSEY_RELEASE }
@@ -267,6 +275,7 @@ pipeline {
                         }
                         steps {
                             script {
+                                withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                 def buildSteps = [
                                     ['name': 'eg_objects', 'path': 'eg_objects'],
                                     ['name': 'eg_platform/platform', 'path': 'eg_platform/platform'],
@@ -278,6 +287,7 @@ pipeline {
                                         sh 'mvn clean'
                                         sh 'mvn install -U'
                                     }
+                                }
                                 }
                             }
                         }
@@ -324,42 +334,54 @@ pipeline {
                             stage('Build eg_portal_services') {
                                 steps {
                                     dir('eg_portal_services') {
+                                         withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
                             stage('Build eg_customer_services') {
                                 steps {
                                     dir('eg_customer_services') {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
                             stage('Build eg_lifeline_services') {
                                 steps {
                                     dir('eg_lifeline_services') {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
                             stage('Build eg_merchant_services') {
                                 steps {
                                     dir('eg_merchant_services') {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
                             stage('Build eg_scheduler_services') {
                                 steps {
                                     dir('eg_scheduler_services') {
+                                        withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
                             stage('Build eg_scheduler') {
                                 steps {
                                     dir('eg_scheduler') {
+                                       withEnv(["JAVA_HOME=${tool name: 'jdk14'}", "PATH+JAVA=${tool name: 'jdk14'}/bin"]) {
                                         sh 'mvn clean package'
+                                         }
                                     }
                                 }
                             }
