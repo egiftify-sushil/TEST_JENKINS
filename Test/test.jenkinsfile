@@ -189,12 +189,20 @@ pipeline {
             }
         }
         stage('Java 14') {
+              steps {
+                                script {
             sh """java -version"""
+                                }
+                                }
         }
         stage('Java 17') {
+              steps {
+                                script {
             withEnv(["JAVA_HOME=${tool name: 'jdk17'}", "PATH+JAVA=${tool name: 'jdk17'}/bin"]) {
             sh """java -version"""
             }
+                                }
+              }
         }
         /**
          STAGE 4: Running Maven Build and NPM on Services
