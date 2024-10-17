@@ -274,7 +274,7 @@ pipeline {
            steps {
 
             sh '''				
-
+                cd html 
 				# Create directories for js and css if they don't exist
 				mkdir -p js/common css/common
 				
