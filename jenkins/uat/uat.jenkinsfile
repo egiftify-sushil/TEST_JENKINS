@@ -440,51 +440,7 @@ pipeline {
 
 
 			  }
-/**
- STAGE 7. Running DbScript
-*/ 
-   stage('DbScript'){
-     when { expression { params.JAVA_RELEASE} }
-					steps{
-					    script{
-							   if(sqlFilePath!="")
-							   {
-							    String target_dir = "eg_objects/database/"+sqlFilePath;
-							    res = sh(script: "test -f ${target_dir} && echo '1' || echo '0' ", returnStdout: true).trim()
-							    if(res=='1')
-							    {
-								 sh""" mkdir database
-								  cp ${target_dir} database/
-								  zip -r database.zip database
-								  """;
-		                          sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-		                          transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
-		                          execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-		                          patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-		                          removePrefix: '', sourceFiles: "database.zip")], 
-		                          usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-		                          verbose: true)])
-		                          
-			                      sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-			                      transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-			                      execCommand: '''cd /home/uat-jenkins
-								  sudo unzip database.zip -d /home/uat-jenkins
-								  chmod -R 775 database
-								  cd shfiles
-								  sudo ./executeQuery.sh
-								  cd /home/uat-jenkins
-								  rm -rf database.zip''', 
-								  execTimeout: 180000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-								  patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, 
-								  removePrefix: '', sourceFiles: '')], usePromotionTimestamp: false,
-								  useWorkspaceInPromotion: false, verbose: true)])
-		                       }
-							   else
-							    echo "No db script found"
-							}  
-						}	  
-					}
-		      } 
+
          
             
           post {
