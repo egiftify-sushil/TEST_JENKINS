@@ -210,7 +210,9 @@ pipeline {
 	*/  
 	stage('Minifying CSS and JS and Creating Folders for S3') {
 	when { expression { params.PHP_RELEASE } }
+	
 	steps {
+		withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
 		// Create directories, copy files, and minify
 		sh '''
 			# Navigate to the html directory
@@ -273,6 +275,7 @@ pipeline {
 			rm -rf js
 		'''
 		}
+	}
 	}
  	 stage('Create Patch')
   	 {
