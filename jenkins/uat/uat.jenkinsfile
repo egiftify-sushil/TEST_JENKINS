@@ -367,9 +367,7 @@ pipeline {
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
 						execCommand: '''cd /home/uat-jenkins
-						cd /var/lib/tomcat9/webapps
-						sudo unzip -o webapps.zip
-						cd webapps
+						cd /var/lib/tomcat9/webapps						
 						if [ -d "eg_lifeline_services" ]; then
 							sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
 						fi
@@ -388,7 +386,7 @@ pipeline {
 						if [ -d "eg_scheduler" ]; then
 							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
 						fi
-						cd /home/uat-jenkins
+						cd /home/uat-jenkins/devops
 						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
 						sudo rm -rf webapps*
 						sudo rm -rf eg*''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
@@ -399,14 +397,13 @@ pipeline {
 						
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '''cd shfiles
+						execCommand: '''
+						cd /var/www/html/shfiles
 						sudo ./killSchedularProcess.sh
-						cd /opt/tomcat9/bin
-						sudo ./shutdown.sh  2>/dev/null
-						sudo sleep 5
-						sudo ./startup.sh
-						sudo sleep 10
-						cd shfiles
+						sudo systemctl stop tomcat.service
+						sleep 15
+						sudo systemctl start tomcat.service
+						sleep 15
 						sudo ./schedularProcess.sh''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
@@ -429,11 +426,15 @@ pipeline {
 							
 							sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 							transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-							execCommand: '''cd /home/uat-jenkins
-							sudo rm -rf  eg_yii2_framework_v2/*
+							execCommand: '''cd /home/uat-jenkins/devops
+							sudo unzip -o assets.zip -d /home/uat-jenkins/devops
+							sudo rm -rf /home/uat-jenkins/devops/assets.zip
+							cd /var/www/html
+							sudo rm -rf  eg_yii2_framework_v2
+							cd /home/uat-jenkins/devops
 							sudo unzip -o html.zip -d /var/www/
-							sudo chmod -R 777 eg_yii2_framework_v2/
-							sudo rm -rf html.zip''',
+							sudo chmod -R 777 /var/www/html
+							sudo rm -rf /home/uat-jenkins/devops/html.zip''',
 							execTimeout: 0, flatten: false,
 							makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
 							remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
