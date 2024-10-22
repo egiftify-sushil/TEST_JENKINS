@@ -367,7 +367,7 @@ pipeline {
 			             }
                  	   }
               }     
-       }
+       
 /**
   STAGE 8. Sending Email notification to developers
  */
