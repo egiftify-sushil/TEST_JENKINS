@@ -271,6 +271,7 @@ pipeline {
                 }
            }
 		   stage('Minifying The Css And Js and Creating The Folder For S3'){
+			when { expression { params.PHP_RELEASE} }
            steps {
 
             sh '''				
@@ -313,7 +314,7 @@ pipeline {
 				cp -r eg_customer_yii2/css/* css/marketplace/
 				cp -r eg_staff_yii2/css/* css/staff/
 				cp -r eg_reseller_yii2/css/* css/reseller/
-				cp -r eg_merchant_yii2/css/* css/merchant/
+				cp -r eg_merchant_yii2/css/* css/merchant/ 
 
 				# Move contents from common/common to common
 				sudo mv -n css/common/common/* css/common/ 2>/dev/null || true
@@ -323,6 +324,11 @@ pipeline {
 				sudo rmdir css/common/common 2>/dev/null || true
 				sudo rmdir js/common/common 2>/dev/null || true
 
+				
+
+                
+
+
 				'''
 
 
@@ -331,108 +337,11 @@ pipeline {
 
 
 		   }
+		   
          }
        } 
                  
-/**
- STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
-*/ 
-           stage('Deploy'){
-                 parallel{
-                    stage('JAVA'){
-                      when { expression { params.JAVA_RELEASE} }
-                        steps {
-  				        sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-  				        transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
-  				        execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
-  				        patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
-  				        sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-  				        verbose: true)])
-  				        
-                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-                        transfers: [sshTransfer(cleanRemote: false, excludes: '',
-                        execCommand: '''cd /home/uat-jenkins
-						cd /var/lib/tomcat9/webapps
-						sudo unzip -o webapps.zip
-						cd webapps
-						if [ -d "eg_lifeline_services" ]; then
-						   sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
-						fi
-						if [ -d "eg_merchant_services" ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_merchant_services/WEB-INF/lib/*
-						fi
-						if [ -d "eg_portal_services" ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
-						fi
-						if [ -d "eg_customer_services" ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_customer_services/WEB-INF/lib/*
-						fi
-						if [ -d "eg_scheduler_services" ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
-						fi
-						if [ -d "eg_scheduler" ]; then
-							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
-						fi
-						cd /home/uat-jenkins
-						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
-						sudo rm -rf webapps*
-						sudo rm -rf eg*''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-						verbose: true)])
-						
-						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '''cd shfiles
-						sudo ./killSchedularProcess.sh
-						cd /opt/tomcat9/bin
-						sudo ./shutdown.sh  2>/dev/null
-						sudo sleep 5
-						sudo ./startup.sh
-						sudo sleep 10
-						cd shfiles
-						sudo ./schedularProcess.sh''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-						verbose: true)])
-						}	
-                      }
-
-                      stage('PHP'){
-                        when { expression { params.PHP_RELEASE} }
-	                        steps {
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	                        execCommand: '', 
-	                        execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-	                        noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-	                        remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip')], 
-	                        usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-	                        verbose: true)])
-	                        
-	                        sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-	                        transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-	                        execCommand: '''cd /home/uat-jenkins
-							sudo rm -rf  eg_yii2_framework_v2/*
-							sudo unzip -o html.zip -d /var/www/
-							sudo chmod -R 777 eg_yii2_framework_v2/
-							sudo rm -rf html.zip''',
-							execTimeout: 0, flatten: false,
-							makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
-							remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-							verbose: true)])
-                          }
-                       }
-                    }
-               }
-           
-/**
-  STAGE 6.Syncing & Invalidating assets using aws CLI
-*/  
-           
+     
 
 
 
@@ -464,25 +373,3 @@ pipeline {
 /**
   STAGE 8. Sending Email notification to developers
  */
- if(buildStatus)
- {
-    subject = "UPR ${branchname} SUCCESSFULLY DEPLOYED ON UAT SERVER";
-    env.content = "UPR #${branchname} is successfully deployed to the UAT server. Please verify your changes."
- }
-  else if(buildStatus == "UNSTABLE")
- {
-    subject = "UPR ${branchname} DEPLOYED ON SMOKE IS UNSTABLE";
-	env.content = "UPR #${branchname}  deployed on Server is unstable. Please find the attachments for logs and take action accordingly"
- 	attachment = true;
- }
- else
- {
-    subject = "UPR ${branchname} BUILD FAILED ";
-	env.content = "UPR #${branchname} build failed to deploy on the UAT server. Please find the attachments for logs"
- 	attachment = true;
- } 
- 
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'upr.egiftfy@iqbsys.com'
- 
-
-         
