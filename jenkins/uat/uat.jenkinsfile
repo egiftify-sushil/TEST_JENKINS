@@ -258,7 +258,7 @@ pipeline {
            }
        	   
 		   stage('Minifying The Css And Js and Creating The Folder For S3'){
-			when { expression { params.PHP_RELEASE} }
+		   when { expression { params.PHP_RELEASE} }
            steps {
 
             sh '''				
@@ -303,54 +303,143 @@ pipeline {
 				cp -r eg_reseller_yii2/css/* css/reseller/
 				cp -r eg_merchant_yii2/css/* css/merchant/ 
 
-				
-
-				
-
-                
-
-
 				'''
 
 
-		   }
-		   }
- 		stage('Minifying Css And Js') {
-			steps {
-				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-					sh '''
-						cd /var/lib/jenkins/workspace/UAT/shfiles
-						echo "Running minifier script..."
-						./minifier.sh
-						
-						echo "Cleaning up old CSS and JS directories..."
-						cd /var/lib/jenkins/workspace/UAT/UAT/html
-						rm -rf css
-						rm -rf js
-					'''
+			}
+			}
+			stage('Minifying Css And Js') {
+				steps {
+					withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+						sh '''
+							cd /var/lib/jenkins/workspace/UAT/shfiles
+							echo "Running minifier script..."
+							./minifier.sh
+							cd /var/lib/jenkins/workspace/UAT/UAT
+							sudo find assets -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					        zip -r assets.zip assets/*
+							echo "Cleaning up old CSS and JS directories..."
+							cd /var/lib/jenkins/workspace/UAT/UAT/html
+							rm -rf css
+							rm -rf js
+
+						'''
+					}
 				}
 			}
-		}
-
-
-
-		   }
-		   
+			stage('Create PHP Patch'){
+                when { expression { params.PHP_RELEASE} }
+                steps {
+                  sh '''
+					cd html
+					cd eg_yii2_framework_v2
+					composer install
+					cd ..
+					cd ..
+					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					zip -r html.zip html/*
+					'''
+                }
+           }
+		   }		   
          }
-       } 
+        /**
+		STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
+		*/ 
+			stage('Deploy'){
+					parallel{
+					stage('JAVA'){
+						when { expression { params.JAVA_RELEASE} }
+						steps {
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+						execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
+						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
+						sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+						
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '',
+						execCommand: '''cd /home/uat-jenkins
+						cd /var/lib/tomcat9/webapps
+						sudo unzip -o webapps.zip
+						cd webapps
+						if [ -d "eg_lifeline_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_merchant_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_merchant_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_portal_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_customer_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_customer_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_scheduler_services" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
+						fi
+						if [ -d "eg_scheduler" ]; then
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
+						fi
+						cd /home/uat-jenkins
+						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+						sudo rm -rf webapps*
+						sudo rm -rf eg*''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+						
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						execCommand: '''cd shfiles
+						sudo ./killSchedularProcess.sh
+						cd /opt/tomcat9/bin
+						sudo ./shutdown.sh  2>/dev/null
+						sudo sleep 5
+						sudo ./startup.sh
+						sudo sleep 10
+						cd shfiles
+						sudo ./schedularProcess.sh''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+						}	
+						}
+
+						stage('PHP'){
+						when { expression { params.PHP_RELEASE} }
+							steps {
+							sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+							transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+							execCommand: '', 
+							execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+							remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip , assets.zip')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+							
+							sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+							transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+							execCommand: '''cd /home/uat-jenkins
+							sudo rm -rf  eg_yii2_framework_v2/*
+							sudo unzip -o html.zip -d /var/www/
+							sudo chmod -R 777 eg_yii2_framework_v2/
+							sudo rm -rf html.zip''',
+							execTimeout: 0, flatten: false,
+							makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+							remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+							verbose: true)])
+							}
+						}
+					}
+				}
+       		} 
                  
-     
-
-
-
-
-
-
-			  }
-
-         
-            
-          post {
+   			 post {
 		         success {
 		                  script{
 		                      buildStatus = "SUCCESS"
@@ -366,7 +455,13 @@ pipeline {
 				          	  buildStatus = false
 			             }
                  	   }
-              }     
+              }    
+
+			  }
+
+         
+            
+       
        
 /**
   STAGE 8. Sending Email notification to developers
