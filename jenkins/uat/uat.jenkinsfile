@@ -314,6 +314,7 @@ pipeline {
 
 
 		   }
+		   }
  		stage('Minifying Css And Js') {
 			steps {
 				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
