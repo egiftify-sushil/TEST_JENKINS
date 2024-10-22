@@ -332,20 +332,6 @@ pipeline {
 				}
 			}
 			}
-       	//    stage('Create PHP Patch'){
-        //         when { expression { params.PHP_RELEASE} }
-        //         steps {
-        //           sh '''
-		// 			cd html
-		// 			cd eg_yii2_framework_v2
-		// 			composer install
-		// 			cd ..
-		// 			cd ..
-		// 			sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-		// 			zip -r html.zip html/*
-		// 			'''
-        //         }
-        //    }
 		   }		   
          }
 		
@@ -473,3 +459,22 @@ pipeline {
 /**
   STAGE 8. Sending Email notification to developers
  */
+ if(buildStatus)
+ {
+    subject = "UPR ${branchname} SUCCESSFULLY DEPLOYED ON UAT SERVER";
+    env.content = "UPR #${branchname} is successfully deployed to the UAT server. Please verify your changes."
+ }
+  else if(buildStatus == "UNSTABLE")
+ {
+    subject = "UPR ${branchname} DEPLOYED ON SMOKE IS UNSTABLE";
+	env.content = "UPR #${branchname}  deployed on Server is unstable. Please find the attachments for logs and take action accordingly"
+ 	attachment = true;
+ }
+ else
+ {
+    subject = "UPR ${branchname} BUILD FAILED ";
+	env.content = "UPR #${branchname} build failed to deploy on the UAT server. Please find the attachments for logs"
+ 	attachment = true;
+ } 
+ 
+ emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
