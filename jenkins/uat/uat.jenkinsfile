@@ -256,20 +256,7 @@ pipeline {
 				   zip -r webapps.zip webapps'''
 				  }
            }
-       	   stage('Create PHP Patch'){
-                when { expression { params.PHP_RELEASE} }
-                steps {
-                  sh '''
-					cd html
-					cd eg_yii2_framework_v2
-					composer install
-					cd ..
-					cd ..
-					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-					zip -r html.zip html/*
-					'''
-                }
-           }
+       	   
 		   stage('Minifying The Css And Js and Creating The Folder For S3'){
 			when { expression { params.PHP_RELEASE} }
            steps {
@@ -316,13 +303,7 @@ pipeline {
 				cp -r eg_reseller_yii2/css/* css/reseller/
 				cp -r eg_merchant_yii2/css/* css/merchant/ 
 
-				# Move contents from common/common to common
-				sudo mv -n css/common/common/* css/common/ 2>/dev/null || true
-				sudo mv -n js/common/common/* js/common/ 2>/dev/null || true
-
-				# Remove the now empty common directories if they exist
-				sudo rmdir css/common/common 2>/dev/null || true
-				sudo rmdir js/common/common 2>/dev/null || true
+				
 
 				
 
@@ -333,6 +314,22 @@ pipeline {
 
 
 		   }
+ 		stage('Minifying Css And Js') {
+			steps {
+				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+					sh '''
+						cd /var/lib/jenkins/workspace/UAT/shfiles
+						echo "Running minifier script..."
+						./minifier.sh
+						
+						echo "Cleaning up old CSS and JS directories..."
+						cd /var/lib/jenkins/workspace/UAT/UAT/html
+						rm -rf css
+						rm -rf js
+					'''
+				}
+			}
+		}
 
 
 
