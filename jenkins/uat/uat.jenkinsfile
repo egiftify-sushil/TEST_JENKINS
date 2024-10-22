@@ -308,7 +308,23 @@ pipeline {
 
 			}
 			}
-			stage('Minifying Css And Js') {
+			stage('Create PHP Patch'){
+                when { expression { params.PHP_RELEASE} }
+                steps {
+                  sh '''
+					cd html
+					cd eg_yii2_framework_v2
+					composer install
+					cd ..
+					cd ..
+					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					zip -r html.zip html/*
+					'''
+                }
+           }
+		   }		   
+         }
+		 stage('Minifying Css And Js') {
 				steps {
 					withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
 						sh '''
@@ -327,22 +343,6 @@ pipeline {
 					}
 				}
 			}
-			stage('Create PHP Patch'){
-                when { expression { params.PHP_RELEASE} }
-                steps {
-                  sh '''
-					cd html
-					cd eg_yii2_framework_v2
-					composer install
-					cd ..
-					cd ..
-					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-					zip -r html.zip html/*
-					'''
-                }
-           }
-		   }		   
-         }
         /**
 		STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
 		*/ 
