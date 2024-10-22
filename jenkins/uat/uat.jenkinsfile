@@ -257,57 +257,73 @@ pipeline {
 				  }
            }
        	   
-		   stage('Minifying The Css And Js and Creating The Folder For S3'){
-		   when { expression { params.PHP_RELEASE} }
-           steps {
+		   stage('Minifying CSS and JS and Creating Folders for S3') {
+			when { expression { params.PHP_RELEASE } }
+			steps {
+				// Create directories, copy files, and minify
+				sh '''
+					# Navigate to the html directory
+					cd html 
 
-            sh '''				
-                cd html 
-				# Create directories for js and css if they don't exist
-				mkdir -p js/common css/common
-				
-				# Copy CSS files to their respective folders
-				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} css/common/ \\;
+					# Create directories for js and css if they don't exist
+					mkdir -p js/common css/common
+					
+					# Copy CSS files to their respective folders
+					find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.css" -exec cp -n {} css/common/ \\;
 
-				# Copy JS files to their respective folders
-				find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} js/common/ \\;
+					# Copy JS files to their respective folders
+					find eg_customer_yii2/components eg_merchant_yii2/components eg_staff_yii2/components eg_reseller_yii2/components -type f -name "*.js" -exec cp -n {} js/common/ \\;
 
-				# Remove awss3.js if it exists
-				rm -f js/common/awss3.js
+					# Remove awss3.js if it exists
+					rm -f js/common/awss3.js
 
-				# Copy JS files to the common folder
-				cp -r eg_yii2_framework_v2/egiftify_extensions/onboarding/js/* js/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/egiftify/js/* js/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/payment/js/* js/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/commonAssets/js/* js/common/
+					# Copy JS files to the common folder
+					cp -r eg_yii2_framework_v2/egiftify_extensions/onboarding/js/* js/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/egiftify/js/* js/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/payment/js/* js/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/commonAssets/js/* js/common/
 
-				# Copy CSS files to the common folder
-				cp -r eg_yii2_framework_v2/egiftify_extensions/onboarding/css/* css/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/egiftify/css/* css/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/payment/css/* css/common/
-				cp -r eg_yii2_framework_v2/egiftify_extensions/commonAssets/css/* css/common/
+					# Copy CSS files to the common folder
+					cp -r eg_yii2_framework_v2/egiftify_extensions/onboarding/css/* css/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/egiftify/css/* css/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/payment/css/* css/common/
+					cp -r eg_yii2_framework_v2/egiftify_extensions/commonAssets/css/* css/common/
 
-				# Create additional directories for other projects
-				mkdir -p js/{marketplace,staff,reseller,merchant}
-				mkdir -p css/{marketplace,staff,reseller,merchant}
+					# Create additional directories for other projects
+					mkdir -p js/{marketplace,staff,reseller,merchant}
+					mkdir -p css/{marketplace,staff,reseller,merchant}
 
-				# Copy additional JS files
-				cp -r eg_customer_yii2/js/* js/marketplace/
-				cp -r eg_staff_yii2/js/* js/staff/
-				cp -r eg_reseller_yii2/js/* js/reseller/
-				cp -r eg_merchant_yii2/js/* js/merchant/
+					# Copy additional JS files
+					cp -r eg_customer_yii2/js/* js/marketplace/
+					cp -r eg_staff_yii2/js/* js/staff/
+					cp -r eg_reseller_yii2/js/* js/reseller/
+					cp -r eg_merchant_yii2/js/* js/merchant/
 
-				# Copy additional CSS files
-				cp -r eg_customer_yii2/css/* css/marketplace/
-				cp -r eg_staff_yii2/css/* css/staff/
-				cp -r eg_reseller_yii2/css/* css/reseller/
-				cp -r eg_merchant_yii2/css/* css/merchant/ 
+					# Copy additional CSS files
+					cp -r eg_customer_yii2/css/* css/marketplace/
+					cp -r eg_staff_yii2/css/* css/staff/
+					cp -r eg_reseller_yii2/css/* css/reseller/
+					cp -r eg_merchant_yii2/css/* css/merchant/
 
+					# Now proceed to minify CSS and JS
+					echo "Running minifier script..."
+					cd /var/lib/jenkins/workspace/UAT/shfiles
+					./minifier.sh
+
+					# Navigate to the UAT directory and clean up old assets
+					cd /var/lib/jenkins/workspace/UAT/UAT
+					sudo find assets -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+					zip -r assets.zip assets/*
+
+					# Cleaning up old CSS and JS directories
+					echo "Cleaning up old CSS and JS directories..."
+					cd /var/lib/jenkins/workspace/UAT/UAT/html
+					rm -rf css
+					rm -rf js
 				'''
-
-
+				}
 			}
-			}
+
 			stage('Create PHP Patch'){
                 when { expression { params.PHP_RELEASE} }
                 steps {
@@ -324,25 +340,7 @@ pipeline {
            }
 		   }		   
          }
-		 stage('Minifying Css And Js') {
-				steps {
-					withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
-						sh '''
-							cd /var/lib/jenkins/workspace/UAT/shfiles
-							echo "Running minifier script..."
-							./minifier.sh
-							cd /var/lib/jenkins/workspace/UAT/UAT
-							sudo find assets -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
-					        zip -r assets.zip assets/*
-							echo "Cleaning up old CSS and JS directories..."
-							cd /var/lib/jenkins/workspace/UAT/UAT/html
-							rm -rf css
-							rm -rf js
-
-						'''
-					}
-				}
-			}
+		
         /**
 		STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
 		*/ 
