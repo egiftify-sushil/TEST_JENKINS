@@ -354,6 +354,7 @@ pipeline {
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
 						execCommand: '''cd /home/uat-jenkins/devops
+						sudo rm -rf webapps
 						cd /opt/tomcat9/webapps						
 						if [ -d "eg_lifeline_services" ]; then
 							sudo rm -rf  /opt/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
@@ -377,7 +378,7 @@ pipeline {
 						sudo unzip -o webapps.zip -d webapps
 						sudo cp -r webapps/* /opt/tomcat9/webapps/
 						sudo rm -rf webapps.zip
-						sudo rm -rf webapps
+						
 						''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
@@ -417,7 +418,7 @@ pipeline {
 						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
 						execCommand: '''cd /home/uat-jenkins/devops
 						sudo unzip -o assets.zip -d /home/uat-jenkins/devops
-						sudo rm -rf /home/uat-jenkins/devops/assets.zip
+						
 						cd /var/www/html
 						sudo rm -rf  eg_yii2_framework_v2
 						cd /home/uat-jenkins/devops
