@@ -345,7 +345,10 @@ pipeline {
 						when { expression { params.JAVA_RELEASE} }
 						steps {
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-						transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''
+						cd /home/uat-jenkins/devops
+						sudo rm -rf webapps.zip
+						''', 
 						execTimeout: 0, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, 
 						patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', 
 						sourceFiles: 'webapps.zip')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
@@ -353,7 +356,8 @@ pipeline {
 						
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
-						execCommand: '''cd /home/uat-jenkins
+						execCommand: '''cd /home/uat-jenkins/devops
+						
 						cd /var/lib/tomcat9/webapps						
 						if [ -d "eg_lifeline_services" ]; then
 							sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
@@ -404,7 +408,9 @@ pipeline {
 						steps {
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '', 
+						execCommand: '''cd /home/uat-jenkins/devops
+						sudo rm -rf html.zip
+						sudo rm -rf assets.zip''', 
 						execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip , assets.zip')], 
