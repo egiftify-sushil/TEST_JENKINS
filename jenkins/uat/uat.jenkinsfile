@@ -387,9 +387,9 @@ pipeline {
 						execCommand: '''
 						cd /var/www/html/shfiles
 						sudo ./killSchedularProcess.sh
-						sudo systemctl stop tomcat.service
+						sudo systemctl stop tomcat9.service
 						sleep 15
-						sudo systemctl start tomcat.service
+						sudo systemctl start tomcat9.service
 						sleep 15
 						sudo ./schedularProcess.sh''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
