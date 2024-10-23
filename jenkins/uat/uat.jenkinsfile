@@ -355,6 +355,7 @@ pipeline {
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
 						execCommand: '''cd /home/uat-jenkins/devops
 						sudo rm -rf webapps
+						sudo -s
 						cd /opt/tomcat9/webapps						
 						if [ -d "eg_lifeline_services" ]; then
 							sudo rm -rf  /opt/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
