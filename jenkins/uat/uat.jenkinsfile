@@ -376,7 +376,7 @@ pipeline {
 						fi
 						cd /home/uat-jenkins/devops
 						sudo unzip -o webapps.zip -d webapps
-						sudo cp -r webapps/* /opt/tomcat9/webapps/
+						sudo cp -r webapps/. /opt/tomcat9/webapps/
 						sudo rm -rf webapps.zip
 						
 						''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
