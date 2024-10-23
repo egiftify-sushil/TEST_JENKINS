@@ -264,10 +264,8 @@ pipeline {
 				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
 				// Create directories, copy files, and minify
 				sh '''
-					# Navigate to the html directory
 					cd html 
 
-					# Create directories for js and css if they don't exist
 					mkdir -p js/common css/common
 					
 					# Copy CSS files to their respective folders
@@ -292,8 +290,8 @@ pipeline {
 					cp -r eg_yii2_framework_v2/egiftify_extensions/commonAssets/css/* css/common/
 
 					# Create additional directories for other projects
-					mkdir -p js/{marketplace,staff,reseller,merchant}
-					mkdir -p css/{marketplace,staff,reseller,merchant}
+					mkdir -p js/marketplace js/staff js/reseller js/merchant
+					mkdir -p css/marketplace css/staff css/reseller css/merchant
 
 					# Copy additional JS files
 					cp -r eg_customer_yii2/js/* js/marketplace/
@@ -307,21 +305,25 @@ pipeline {
 					cp -r eg_reseller_yii2/css/* css/reseller/
 					cp -r eg_merchant_yii2/css/* css/merchant/
 
-					# Now proceed to minify CSS and JS
-					echo "Running minifier script..."
-					cd /var/lib/jenkins/workspace/UAT/shfiles
-					./minifier.sh
+					cd ..
+					mkdir -p minifier
 
-					# Navigate to the UAT directory and clean up old assets
-					cd /var/lib/jenkins/workspace/UAT/UAT
+					# Copy the complete minifier folder from /var/utility to the project
+					cp -r /var/utility/minifier/* minifier/
+					
+					cd minifier
+					node minifier.js &
+					MINIFIER_PID=$!
+
+					# Wait for the process to complete
+					wait $MINIFIER_PID
+					cd ..
 					zip -r assets.zip assets/*
-
-					# Cleaning up old CSS and JS directories
+					
 					echo "Cleaning up old CSS and JS directories..."
-					cd /var/lib/jenkins/workspace/UAT/UAT/html
+					cd html
 					rm -rf css
 					rm -rf js
-					cd /var/lib/jenkins/workspace/UAT/UAT/html
 					cd eg_yii2_framework_v2
 					composer install
 					cd ..
@@ -456,25 +458,25 @@ pipeline {
             
        
        
-/**
-  STAGE 8. Sending Email notification to developers
- */
- if(buildStatus)
- {
-    subject = "UPR ${branchname} SUCCESSFULLY DEPLOYED ON UAT SERVER";
-    env.content = "UPR #${branchname} is successfully deployed to the UAT server. Please verify your changes."
- }
-  else if(buildStatus == "UNSTABLE")
- {
-    subject = "UPR ${branchname} DEPLOYED ON SMOKE IS UNSTABLE";
-	env.content = "UPR #${branchname}  deployed on Server is unstable. Please find the attachments for logs and take action accordingly"
- 	attachment = true;
- }
- else
- {
-    subject = "UPR ${branchname} BUILD FAILED ";
-	env.content = "UPR #${branchname} build failed to deploy on the UAT server. Please find the attachments for logs"
- 	attachment = true;
- } 
+// /**
+//   STAGE 8. Sending Email notification to developers
+//  */
+//  if(buildStatus)
+//  {
+//     subject = "UPR ${branchname} SUCCESSFULLY DEPLOYED ON UAT SERVER";
+//     env.content = "UPR #${branchname} is successfully deployed to the UAT server. Please verify your changes."
+//  }
+//   else if(buildStatus == "UNSTABLE")
+//  {
+//     subject = "UPR ${branchname} DEPLOYED ON SMOKE IS UNSTABLE";
+// 	env.content = "UPR #${branchname}  deployed on Server is unstable. Please find the attachments for logs and take action accordingly"
+//  	attachment = true;
+//  }
+//  else
+//  {
+//     subject = "UPR ${branchname} BUILD FAILED ";
+// 	env.content = "UPR #${branchname} build failed to deploy on the UAT server. Please find the attachments for logs"
+//  	attachment = true;
+//  } 
  
- emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
+//  emailext attachLog: attachment, body: '${SCRIPT, template="mail-html.template"}', mimeType: 'text/html', subject: "${subject}", to: 'sidharth.guleria@iqbsys.com'
