@@ -417,9 +417,10 @@ pipeline {
 						
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-						execCommand: '''cd /home/uat-jenkins/devops
+						execCommand: '''
+						cd /home/uat-jenkins/devops
+						sudo rm -rf assets
 						sudo unzip -o assets.zip -d /home/uat-jenkins/devops
-						
 						cd /var/www/html
 						sudo rm -rf  eg_yii2_framework_v2
 						cd /home/uat-jenkins/devops
