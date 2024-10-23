@@ -374,8 +374,10 @@ pipeline {
 							sudo rm -rf  /opt/tomcat9/webapps/eg_scheduler/lib/*
 						fi
 						cd /home/uat-jenkins/devops
-						sudo unzip -o webapps.zip -d /opt/tomcat9/
+						sudo unzip -o webapps.zip -d webapps
+						sudo cp -r webapps/* /opt/tomcat9/webapps/
 						sudo rm -rf webapps.zip
+						sudo rm -rf webapps
 						''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
