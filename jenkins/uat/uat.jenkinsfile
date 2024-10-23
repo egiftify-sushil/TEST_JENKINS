@@ -353,34 +353,30 @@ pipeline {
 						
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
-						execCommand: '''cd /home/uat-jenkins/devops
-						sudo rm -rf webapps
-						sudo -s
-						cd /opt/tomcat9/webapps						
+						execCommand: '''cd /home/uat-jenkins/devops						
+						cd /var/lib/tomcat9/webapps
 						if [ -d "eg_lifeline_services" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
+						   sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
 						fi
 						if [ -d "eg_merchant_services" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_merchant_services/WEB-INF/lib/*
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_merchant_services/WEB-INF/lib/*
 						fi
 						if [ -d "eg_portal_services" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_portal_services/WEB-INF/lib/*
 						fi
 						if [ -d "eg_customer_services" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_customer_services/WEB-INF/lib/*
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_customer_services/WEB-INF/lib/*
 						fi
 						if [ -d "eg_scheduler_services" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler_services/WEB-INF/lib/*
 						fi
 						if [ -d "eg_scheduler" ]; then
-							sudo rm -rf  /opt/tomcat9/webapps/eg_scheduler/lib/*
+							sudo rm -rf  /var/lib/tomcat9/webapps/eg_scheduler/lib/*
 						fi
 						cd /home/uat-jenkins/devops
-						sudo unzip -o webapps.zip -d 
-						sudo cp -r webapps/* /opt/tomcat9/webapps/
-						
-						sudo rm -rf webapps.zip
-						
+						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
+						sudo rm -rf /home/uat-jenkins/devops/webapps*
+						sudo rm -rf /home/uat-jenkins/devops/eg*						
 						''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
