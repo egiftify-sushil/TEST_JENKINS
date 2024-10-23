@@ -11,7 +11,6 @@ STAGE 6:-  CDN syncing & invalidating assets using aws CLI.
 STAGE 7:-  Running Db Script if any. 
 STAGE 8:-  Sending Email notification to developers
 
-
 PLUGINS USED:-
 sshPublisher:- To upload folder and to execute ssh script on remote server 
 CVSSCM:- To checkout the code from repository server
@@ -84,26 +83,26 @@ pipeline {
 	               }
                 }
             }
-            stage('PHP Checkout'){
-              	when { expression { params.PHP_RELEASE } }
-                  steps {
-		                  sh ''' 
-		                   mkdir html
-		                  '''
-			              withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
-			              checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false, 
-			              repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
-			              repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
-			              modules: [
-			              [localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'], 
-			              [localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'], 
-			              [localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'], 
-			              [localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2'],
-			              [localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]], 
-			              skipChangeLog: false]
-                         }
-                     }
-                   } 
+		 stage('PHP Checkout'){
+			when { expression { params.PHP_RELEASE } }
+				steps {
+					sh ''' 
+					mkdir html
+					'''
+					withCredentials([string(credentialsId: 'CVSPATH', variable: 'CVSPATH'), string(credentialsId: 'CVSPASSWORD', variable: 'CVSPASSWORD')]) {
+					checkout changelog: true, poll: false, scm: [$class: 'CVSSCM', canUseUpdate: false, checkoutCurrentTimestamp: false, cleanOnFailedUpdate: false, disableCvsQuiet: true, forceCleanCopy: false, legacy: false, pruneEmptyDirectories: false, 
+					repositories: [[compressionLevel: -1, cvsRoot: "${CVSPATH}", excludedRegions: [[pattern: '']], password:"${CVSPASSWORD}", passwordRequired: true, 
+					repositoryItems: [[location: [$class: 'BranchRepositoryLocation', branchName: branchname, useHeadIfNotFound: false], 
+					modules: [
+					[localName: 'html/eg_reseller_yii2', remoteName: 'eg_reseller_yii2'], 
+					[localName: 'html/eg_customer_yii2', remoteName: 'eg_customer_yii2'], 
+					[localName: 'html/eg_staff_yii2', remoteName: 'eg_staff_yii2'], 
+					[localName: 'html/eg_merchant_yii2', remoteName: 'eg_merchant_yii2'],
+					[localName: 'html/eg_yii2_framework_v2', remoteName: 'eg_yii2_framework_v2']]]]]], 
+					skipChangeLog: false]
+					}
+				}
+		    } 
                  } 
                }  
 
@@ -115,26 +114,26 @@ pipeline {
         {
  		 stages {
      		 stage('Platform') {
-		             when { expression { params.JAVA_RELEASE } }
-			               steps{
-			                      sh '''cd eg_objects
-										mvn clean
-										mvn install -U
-										cd ..
-										cd eg_platform
-										cd platform
-										mvn clean
-										mvn install -U
-										cd ..
-										mvn clean
-										mvn install -U 
-										cd ..
-										cd scheduler_base
-										mvn clean
-										mvn install -U
-										cd ..
-										'''
-			                    } 
+		            when { expression { params.JAVA_RELEASE } }
+					steps{
+						sh '''cd eg_objects
+							mvn clean
+							mvn install -U
+							cd ..
+							cd eg_platform
+							cd platform
+							mvn clean
+							mvn install -U
+							cd ..
+							mvn clean
+							mvn install -U 
+							cd ..
+							cd scheduler_base
+							mvn clean
+							mvn install -U
+							cd ..
+							'''
+						} 
 		            }
 		       stage('Build Services'){   
                  parallel{
@@ -180,26 +179,26 @@ pipeline {
 								 fi'''
 							  }
 						 }
-						  stage('Building Scheduler Services'){
-                    	   when { expression { params.JAVA_RELEASE} }
-	                       steps {
-	                           sh '''if [ -d "eg_scheduler_services" ]; then
-	                             cd eg_scheduler_services
- 								 mvn clean
-								 mvn package
-								 fi'''
-							  }
-							 }
-						  stage('Building Scheduler'){
-                    	   when { expression { params.JAVA_RELEASE} }
-	                       steps {
-	                          sh''' if [ -d "eg_scheduler" ]; then
-	                             cd eg_scheduler
- 								 mvn clean
-								 mvn package
-								 fi'''
-							  }
-						   }
+						stage('Building Scheduler Services'){
+						when { expression { params.JAVA_RELEASE} }
+						steps {
+							sh '''if [ -d "eg_scheduler_services" ]; then
+								cd eg_scheduler_services
+								mvn clean
+								mvn package
+								fi'''
+							}
+							}
+						stage('Building Scheduler'){
+						when { expression { params.JAVA_RELEASE} }
+						steps {
+							sh''' if [ -d "eg_scheduler" ]; then
+								cd eg_scheduler
+								mvn clean
+								mvn package
+								fi'''
+							}
+						}
                       }
                     }
                  }
@@ -211,7 +210,7 @@ pipeline {
 	
  	 stage('Create Patch')
   	 {
-        parallel{
+        // parallel{
         stage('Create Services & Scheduler Patch'){
           when { expression { params.JAVA_RELEASE} }
             steps {
@@ -332,8 +331,8 @@ pipeline {
 					zip -r html.zip html/*
 				'''
 				}
-			}
-			}
+			  }
+			//  }
 		   }		   
          }
 		
@@ -402,34 +401,34 @@ pipeline {
 
 						stage('PHP'){
 						when { expression { params.PHP_RELEASE} }
-							steps {
-							sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-							transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-							execCommand: '', 
-							execTimeout: 0, flatten: false, makeEmptyDirs: false, 
-							noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
-							remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip , assets.zip')], 
-							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-							verbose: true)])
-							
-							sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
-							transfers: [sshTransfer(cleanRemote: false, excludes: '', 
-							execCommand: '''cd /home/uat-jenkins/devops
-							sudo unzip -o assets.zip -d /home/uat-jenkins/devops
-							sudo rm -rf /home/uat-jenkins/devops/assets.zip
-							cd /var/www/html
-							sudo rm -rf  eg_yii2_framework_v2
-							cd /home/uat-jenkins/devops
-							sudo unzip -o html.zip -d /var/www/
-							sudo chmod -R 777 /var/www/html
-							sudo rm -rf /home/uat-jenkins/devops/html.zip''',
-							execTimeout: 0, flatten: false,
-							makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
-							remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
-							usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
-							verbose: true)])
-							}
+						steps {
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						execCommand: '', 
+						execTimeout: 0, flatten: false, makeEmptyDirs: false, 
+						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
+						remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'html.zip , assets.zip')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
+						
+						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
+						transfers: [sshTransfer(cleanRemote: false, excludes: '', 
+						execCommand: '''cd /home/uat-jenkins/devops
+						sudo unzip -o assets.zip -d /home/uat-jenkins/devops
+						sudo rm -rf /home/uat-jenkins/devops/assets.zip
+						cd /var/www/html
+						sudo rm -rf  eg_yii2_framework_v2
+						cd /home/uat-jenkins/devops
+						sudo unzip -o html.zip -d /var/www/
+						sudo chmod -R 777 /var/www/html
+						sudo rm -rf /home/uat-jenkins/devops/html.zip''',
+						execTimeout: 0, flatten: false,
+						makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+						remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
+						usePromotionTimestamp: false, useWorkspaceInPromotion: false, 
+						verbose: true)])
 						}
+					    }
 					}
 				}
        		} 
