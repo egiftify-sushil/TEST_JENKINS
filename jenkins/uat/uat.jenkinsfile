@@ -353,9 +353,8 @@ pipeline {
 						
 						sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
 						transfers: [sshTransfer(cleanRemote: false, excludes: '',
-						execCommand: '''cd /home/uat-jenkins/devops
-						sudo unzip -o webapps.zip
-						cd webapps
+						execCommand: '''cd /home/uat-jenkins/devops	
+						cd /var/lib/tomcat9/webapps					
 						if [ -d "eg_lifeline_services" ]; then
 						   sudo rm -rf  /var/lib/tomcat9/webapps/eg_lifeline_services/WEB-INF/lib/*
 						fi
@@ -376,8 +375,7 @@ pipeline {
 						fi
 						cd /home/uat-jenkins/devops
 						sudo unzip -o webapps.zip -d /var/lib/tomcat9/
-						sudo rm -rf /home/uat-jenkins/devops/webapps.zip
-						sudo rm -rf /home/uat-jenkins/devops/eg*						
+						sudo rm -rf /home/uat-jenkins/devops/webapps.zip				
 						''', execTimeout: 0, flatten: false, makeEmptyDirs: false, 
 						noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', 
 						remoteDirectorySDF: false, removePrefix: '', sourceFiles: '')], 
