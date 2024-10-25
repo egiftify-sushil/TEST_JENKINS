@@ -206,11 +206,8 @@ pipeline {
               
 	/**
    STAGE 4.Creating Patch (Running maven build,php composer and code packaging)
-	*/  
-	
- 	//  stage('Create Patch')
-  	//  {
-    //     parallel{
+	*/  	
+ 	
         stage('Create Services & Scheduler Patch'){
           when { expression { params.JAVA_RELEASE} }
             steps {
@@ -333,9 +330,7 @@ pipeline {
 				}
 			  }
 			 }
-		//    }		   
-        //  }
-		
+	
         /**
 		STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
 		*/ 
