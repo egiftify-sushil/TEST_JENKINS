@@ -258,9 +258,11 @@ pipeline {
 			
 			steps {
 				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
+				sh '''
+				sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+				'''
 				// Create directories, copy files, and minify
 				sh '''
-				    sudo find html -type d -name "CVS" -exec rm -rf {} +
 					cd html 
                    
 					mkdir -p js/common css/common
@@ -325,7 +327,6 @@ pipeline {
 					composer install
 					cd ..
 					cd ..
-					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
 					zip -r html.zip html/*
 				'''
 				}
