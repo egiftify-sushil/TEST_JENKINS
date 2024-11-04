@@ -260,8 +260,9 @@ pipeline {
 				withEnv(["PATH+NODE=${tool name: 'nodejs14'}/bin"]) {
 				// Create directories, copy files, and minify
 				sh '''
+				    sudo find html -type d -name "CVS" -exec rm -rf {} +
 					cd html 
-
+                   
 					mkdir -p js/common css/common
 					
 					# Copy CSS files to their respective folders
