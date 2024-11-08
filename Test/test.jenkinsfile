@@ -55,7 +55,7 @@ pipeline {
 /**
 STAGE 3.Creating Patch For Staff Portal
 */  	
-        stage('Minifying CSS and JS and Creating Folders for S3') {
+        stage('Creating html zip') {
                 steps {
                     sh '''
                         cd html 
