@@ -64,7 +64,7 @@ STAGE 3.Creating Patch For Staff Portal
                         composer install
                         cd ..
                         cd ..
-                        sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
+                        find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
                         zip -r html.zip html/*
                     '''
                     
@@ -87,10 +87,8 @@ STAGE 5. Deploying Patch on servers with the help of sshPublisher plugin
                     sshPublisher(publishers: [sshPublisherDesc(configName: 'Regalify', 
                     transfers: [sshTransfer(cleanRemote: false, excludes: '', 
                     execCommand: '''
-                    cd /home/uat-jenkins/devops                    
-                    cd /var/www/html
-                    sudo rm -rf  eg_yii2_framework_v2
-                    cd /home/uat-jenkins/devops
+                    cd /home/uat-jenkins/devops                  
+                    sudo rm -rf /var/www/html
                     sudo unzip -o html.zip -d /var/www/
                     sudo chmod -R 777 /var/www/html
                     sudo rm -rf /home/uat-jenkins/devops/html.zip''',
