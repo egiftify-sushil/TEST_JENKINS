@@ -10,7 +10,6 @@ pipeline {
      */
     parameters {
         string(name: "BRANCH_NAME", defaultValue: '', description: 'Provide Branch Name')
-        string(name: "DB_FILE_PATH", defaultValue: '', description: 'Provide db file path if any')
     }
     stages {        
 /**
