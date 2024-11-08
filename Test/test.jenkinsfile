@@ -1,7 +1,5 @@
 
 def buildStatus = true;
-def attachment = false;
-def sqlFilePath="";
 pipeline {
 
     agent any
