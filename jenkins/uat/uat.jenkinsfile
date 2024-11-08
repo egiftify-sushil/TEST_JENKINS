@@ -261,7 +261,7 @@ pipeline {
 				// Create directories, copy files, and minify
 				sh '''
 					cd html 
-
+                    sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
 					mkdir -p js/common css/common
 					
 					# Copy CSS files to their respective folders
@@ -324,7 +324,6 @@ pipeline {
 					composer install
 					cd ..
 					cd ..
-					sudo find html -type d -name "CVS*" -print0 | xargs -0 -I {} /bin/rm -rf "{}"
 					zip -r html.zip html/*
 				'''
 				}
